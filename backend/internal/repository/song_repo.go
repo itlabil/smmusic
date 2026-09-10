@@ -126,3 +126,34 @@ func (r *SongRepository) Delete(id int) error {
 	_, err := r.db.Exec(`DELETE FROM songs WHERE id = $1`, id)
 	return err
 }
+
+// ListWithLikedStatus returns songs with an is_liked flag for the given user
+func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]models.Song, error) {
+	query := `
+		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
+		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
+		       (l.user_id IS NOT NULL) AS is_liked
+		FROM songs s
+		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $1
+		ORDER BY s.created_at DESC LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.Query(query, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var songs []models.Song
+	for rows.Next() {
+		var s models.Song
+		if err := rows.Scan(
+			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
+			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked,
+		); err != nil {
+			return nil, err
+		}
+		songs = append(songs, s)
+	}
+	return songs, nil
+}

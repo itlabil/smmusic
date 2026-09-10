@@ -42,7 +42,8 @@ func (h *SongHandler) Upload(c *gin.Context) {
 }
 
 func (h *SongHandler) List(c *gin.Context) {
-	songs, err := h.songService.List(50, 0) // basic pagination default, refined later
+	userID := c.GetInt("user_id")
+	songs, err := h.songService.List(userID, 50, 0) // basic pagination default, refined later
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return

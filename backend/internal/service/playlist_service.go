@@ -76,7 +76,7 @@ func (s *PlaylistService) ListSongs(playlistID, userID int) ([]models.Song, erro
 	if err := s.checkOwnership(playlistID, userID); err != nil {
 		return nil, err
 	}
-	return s.repo.ListSongs(playlistID)
+	return s.repo.ListSongs(playlistID, userID)
 }
 
 func (s *PlaylistService) Reorder(playlistID, userID int, songIDs []int) error {

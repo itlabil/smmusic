@@ -142,8 +142,8 @@ func copyFile(src, dest string) error {
 	return err
 }
 
-func (s *SongService) List(limit, offset int) ([]models.Song, error) {
-	return s.songRepo.List(limit, offset)
+func (s *SongService) List(userID, limit, offset int) ([]models.Song, error) {
+	return s.songRepo.ListWithLikedStatus(userID, limit, offset)
 }
 
 // GetStreamPath resolves which file to serve based on requested quality

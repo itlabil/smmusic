@@ -1,11 +1,14 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { listSongs } from '@/services/songs'
+import { listSongs, likeSong, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
 import SongRow from '@/components/song-card/SongRow.vue'
+import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 
 const songs = ref([])
 const player = usePlayerStore()
+const showModal = ref(false)
+const selectedSongId = ref(null)
 
 onMounted(async () => {
   const res = await listSongs()
@@ -14,6 +17,20 @@ onMounted(async () => {
 
 function playSong(index) {
   player.playQueue(songs.value, index)
+}
+
+async function handleToggleLike(song) {
+  if (song.is_liked) {
+    await unlikeSong(song.id)
+  } else {
+    await likeSong(song.id)
+  }
+  song.is_liked = !song.is_liked
+}
+
+function openAddToPlaylist(songId) {
+  selectedSongId.value = songId
+  showModal.value = true
 }
 </script>
 
@@ -31,7 +48,15 @@ function playSong(index) {
         :key="song.id"
         :song="song"
         @play="playSong(index)"
+        @toggle-like="handleToggleLike(song)"
+        @add-to-playlist="openAddToPlaylist(song.id)"
       />
     </div>
+
+    <AddToPlaylistModal
+      v-if="showModal"
+      :song-id="selectedSongId"
+      @close="showModal = false"
+    />
   </div>
 </template>
