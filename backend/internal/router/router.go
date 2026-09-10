@@ -18,17 +18,20 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 	userRepo := repository.NewUserRepository(db)
 	songRepo := repository.NewSongRepository(db)
 	interactionRepo := repository.NewInteractionRepository(db)
+	playlistRepo := repository.NewPlaylistRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
 	transcodeService := service.NewTranscodeService(songRepo, 2) // max 2 concurrent transcode workers
 	songService := service.NewSongService(songRepo, cfg, transcodeService)
 	interactionService := service.NewInteractionService(interactionRepo)
+	playlistService := service.NewPlaylistService(playlistRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	songHandler := handler.NewSongHandler(songService)
 	interactionHandler := handler.NewInteractionHandler(interactionService)
+	playlistHandler := handler.NewPlaylistHandler(playlistService)
 
 	api := r.Group("/api")
 	{
@@ -51,6 +54,15 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 
 			authed.POST("/songs/:id/play", interactionHandler.RecordPlay)
 			authed.GET("/songs/recently-played", interactionHandler.ListRecentlyPlayed)
+
+			authed.POST("/playlists", playlistHandler.Create)
+			authed.GET("/playlists", playlistHandler.List)
+			authed.PATCH("/playlists/:id", playlistHandler.Rename)
+			authed.DELETE("/playlists/:id", playlistHandler.Delete)
+			authed.GET("/playlists/:id/songs", playlistHandler.ListSongs)
+			authed.POST("/playlists/:id/songs", playlistHandler.AddSong)
+			authed.DELETE("/playlists/:id/songs/:songId", playlistHandler.RemoveSong)
+			authed.PUT("/playlists/:id/reorder", playlistHandler.Reorder)
 
 			// Admin-only routes
 			admin := authed.Group("/admin")
