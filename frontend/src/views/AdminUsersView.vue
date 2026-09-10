@@ -83,7 +83,7 @@ async function handleCreate() {
         <button
           type="submit"
           :disabled="isCreating"
-          class="bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-full px-6 py-2 transition"
+          class="bg-green-500 hover:bg-green-400 active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-green-500 text-black font-bold rounded-full px-6 py-2 shadow-lg shadow-green-500/10 transition"
         >
           {{ isCreating ? 'Creating...' : 'Create User' }}
         </button>

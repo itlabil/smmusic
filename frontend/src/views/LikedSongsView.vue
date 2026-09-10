@@ -4,15 +4,28 @@ import { listLikedSongs, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
 import SongRow from '@/components/song-card/SongRow.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
+import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 
 const songs = ref([])
 const player = usePlayerStore()
 const showEditModal = ref(false)
 const selectedSong = ref(null)
+const showAddToPlaylistModal = ref(false)
+const selectedSongId = ref(null)
 
 function openEdit(song) {
   selectedSong.value = song
   showEditModal.value = true
+}
+
+function openAddToPlaylist(songId) {
+  selectedSongId.value = songId
+  showAddToPlaylistModal.value = true
+}
+
+function handleAdded() {
+  const song = songs.value.find((s) => s.id === selectedSongId.value)
+  if (song) song.is_in_playlist = true
 }
 
 async function loadSongs() {
@@ -40,7 +53,7 @@ async function handleToggleLike(song) {
       You haven't liked any songs yet.
     </div>
 
-    <div v-else class="space-y-1">
+    <div v-else class="divide-y divide-neutral-800/60">
       <SongRow
         v-for="(song, index) in songs"
         :key="song.id"
@@ -48,6 +61,7 @@ async function handleToggleLike(song) {
         @play="playSong(index)"
         @toggle-like="handleToggleLike(song)"
         @edit="openEdit(song)"
+        @add-to-playlist="openAddToPlaylist(song.id)"
       />
     </div>
 
@@ -56,6 +70,13 @@ async function handleToggleLike(song) {
       :song="selectedSong"
       @close="showEditModal = false"
       @updated="loadSongs"
+    />
+
+    <AddToPlaylistModal
+      v-if="showAddToPlaylistModal"
+      :song-id="selectedSongId"
+      @added="handleAdded"
+      @close="showAddToPlaylistModal = false"
     />
   </div>
 </template>

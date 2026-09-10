@@ -111,13 +111,13 @@ async function handleSave() {
         <button
           @click="handleSave"
           :disabled="isSaving"
-          class="flex-1 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-full py-2 transition"
+          class="flex-1 bg-green-500 hover:bg-green-400 active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-green-500 text-black font-bold rounded-full py-2 shadow-lg shadow-green-500/10 transition"
         >
           {{ isSaving ? 'Saving...' : 'Save' }}
         </button>
         <button
           @click="emit('close')"
-          class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full py-2 transition"
+          class="flex-1 bg-neutral-800 hover:bg-neutral-700 active:scale-[0.98] text-white font-medium rounded-full py-2 transition"
         >
           Cancel
         </button>

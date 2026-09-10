@@ -79,16 +79,23 @@ func (r *SongRepository) List(limit, offset int) ([]models.Song, error) {
 }
 
 // Search using Postgres full-text search on search_vector
-func (r *SongRepository) Search(query string, limit int) ([]models.Song, error) {
+func (r *SongRepository) Search(userID int, query string, limit int) ([]models.Song, error) {
 	sqlQuery := `
-		SELECT id, title, artist, album, genre, duration_seconds, source_format,
-		       flac_path, mp3_path, cover_path, transcode_status, uploaded_by, created_at, updated_at
-		FROM songs
-		WHERE search_vector @@ plainto_tsquery('simple', $1)
-		ORDER BY ts_rank(search_vector, plainto_tsquery('simple', $1)) DESC
-		LIMIT $2
+		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
+		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
+		       (l.user_id IS NOT NULL) AS is_liked,
+		       EXISTS (
+		           SELECT 1 FROM playlist_songs ps
+		           INNER JOIN playlists p ON p.id = ps.playlist_id
+		           WHERE ps.song_id = s.id AND p.user_id = $1
+		       ) AS is_in_playlist
+		FROM songs s
+		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $1
+		WHERE s.search_vector @@ plainto_tsquery('simple', $2)
+		ORDER BY ts_rank(s.search_vector, plainto_tsquery('simple', $2)) DESC
+		LIMIT $3
 	`
-	rows, err := r.db.Query(sqlQuery, query, limit)
+	rows, err := r.db.Query(sqlQuery, userID, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +107,7 @@ func (r *SongRepository) Search(query string, limit int) ([]models.Song, error) 
 		if err := rows.Scan(
 			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
 			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked, &s.IsInPlaylist,
 		); err != nil {
 			return nil, err
 		}
@@ -132,7 +139,12 @@ func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]model
 	query := `
 		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
 		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
-		       (l.user_id IS NOT NULL) AS is_liked
+		       (l.user_id IS NOT NULL) AS is_liked,
+		       EXISTS (
+		           SELECT 1 FROM playlist_songs ps
+		           INNER JOIN playlists p ON p.id = ps.playlist_id
+		           WHERE ps.song_id = s.id AND p.user_id = $1
+		       ) AS is_in_playlist
 		FROM songs s
 		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $1
 		ORDER BY s.created_at DESC LIMIT $2 OFFSET $3
@@ -149,7 +161,7 @@ func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]model
 		if err := rows.Scan(
 			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
 			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked, &s.IsInPlaylist,
 		); err != nil {
 			return nil, err
 		}
@@ -158,6 +170,7 @@ func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]model
 	return songs, nil
 }
 
+// Search using Postgres full-text search
 func (r *SongRepository) UpdateCoverPath(id int, coverPath string) error {
 	query := `UPDATE songs SET cover_path = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.Exec(query, coverPath, id)

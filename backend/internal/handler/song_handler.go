@@ -145,3 +145,20 @@ func (h *SongHandler) UploadCover(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "cover uploaded"})
 }
+
+func (h *SongHandler) Search(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	query := c.Query("q")
+
+	if query == "" {
+		c.JSON(http.StatusOK, gin.H{"songs": []interface{}{}})
+		return
+	}
+
+	songs, err := h.songService.Search(userID, query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"songs": songs})
+}

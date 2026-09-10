@@ -1,40 +1,39 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { listSongs, listRecentlyPlayed, likeSong, unlikeSong } from '@/services/songs'
+import { ref, watch } from 'vue'
+import { searchSongs, likeSong, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
+import { Search } from 'lucide-vue-next'
 import SongRow from '@/components/song-card/SongRow.vue'
 import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
 
+const query = ref('')
 const songs = ref([])
-const recentSongs = ref([])
+const isSearching = ref(false)
 const player = usePlayerStore()
 const showAddToPlaylistModal = ref(false)
 const showEditModal = ref(false)
 const selectedSongId = ref(null)
 const selectedSong = ref(null)
 
-async function loadSongs() {
-  const res = await listSongs()
-  songs.value = res.data.songs || []
-}
+let debounceTimer = null
 
-async function loadRecentSongs() {
-  const res = await listRecentlyPlayed()
-  recentSongs.value = res.data.songs || []
-}
-
-onMounted(() => {
-  loadSongs()
-  loadRecentSongs()
+watch(query, (newQuery) => {
+  clearTimeout(debounceTimer)
+  if (!newQuery.trim()) {
+    songs.value = []
+    return
+  }
+  debounceTimer = setTimeout(async () => {
+    isSearching.value = true
+    const res = await searchSongs(newQuery.trim())
+    songs.value = res.data.songs || []
+    isSearching.value = false
+  }, 300)
 })
 
 function playSong(index) {
   player.playQueue(songs.value, index)
-}
-
-function playRecentSong(index) {
-  player.playQueue(recentSongs.value, index)
 }
 
 async function handleToggleLike(song) {
@@ -52,9 +51,7 @@ function openAddToPlaylist(songId) {
 }
 
 function handleAdded() {
-  const song =
-    songs.value.find((s) => s.id === selectedSongId.value) ||
-    recentSongs.value.find((s) => s.id === selectedSongId.value)
+  const song = songs.value.find((s) => s.id === selectedSongId.value)
   if (song) song.is_in_playlist = true
 }
 
@@ -62,37 +59,27 @@ function openEdit(song) {
   selectedSong.value = song
   showEditModal.value = true
 }
-
-async function handleUpdated() {
-  await loadSongs()
-  await loadRecentSongs()
-}
 </script>
 
 <template>
   <div class="p-4 md:p-8">
-    <div v-if="recentSongs.length > 0" class="mb-10">
-      <h2 class="text-white text-lg md:text-xl font-bold mb-4">Recently Played</h2>
-      <div class="divide-y divide-neutral-800/60">
-        <SongRow
-          v-for="(song, index) in recentSongs"
-          :key="'recent-' + song.id"
-          :song="song"
-          @play="playRecentSong(index)"
-          @toggle-like="handleToggleLike(song)"
-          @add-to-playlist="openAddToPlaylist(song.id)"
-          @edit="openEdit(song)"
-        />
-      </div>
+    <div class="relative max-w-md mb-6">
+      <Search :size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+      <input
+        v-model="query"
+        type="text"
+        placeholder="Search songs or artists..."
+        class="w-full bg-neutral-800 text-white rounded-full pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-green-500"
+      />
     </div>
 
-    <h1 class="text-white text-xl md:text-2xl font-bold mb-6">Your Library</h1>
+    <div v-if="isSearching" class="text-neutral-400">Searching...</div>
 
-    <div v-if="songs.length === 0" class="text-neutral-400">
-      No songs yet. Upload your first song to get started.
+    <div v-else-if="query && songs.length === 0" class="text-neutral-400">
+      No results for "{{ query }}"
     </div>
 
-    <div v-else class="divide-y divide-neutral-800/60">
+    <div v-else-if="songs.length > 0" class="divide-y divide-neutral-800/60">
       <SongRow
         v-for="(song, index) in songs"
         :key="song.id"
@@ -115,7 +102,7 @@ async function handleUpdated() {
       v-if="showEditModal"
       :song="selectedSong"
       @close="showEditModal = false"
-      @updated="handleUpdated"
+      @updated="() => {}"
     />
   </div>
 </template>

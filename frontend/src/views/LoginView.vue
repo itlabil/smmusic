@@ -57,7 +57,7 @@ async function handleLogin() {
         <button
           type="submit"
           :disabled="isLoading"
-          class="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-full py-3 transition"
+          class="w-full bg-green-500 hover:bg-green-400 active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-green-500 text-black font-bold rounded-full py-3 shadow-lg shadow-green-500/10 transition"
         >
           {{ isLoading ? 'Logging in...' : 'Log In' }}
         </button>

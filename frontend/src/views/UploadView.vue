@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ArrowLeft } from 'lucide-vue-next'
 import { uploadSong } from '@/services/songs'
 
 const router = useRouter()
@@ -84,13 +85,17 @@ async function handleUpload() {
       <button
         @click="handleUpload"
         :disabled="!selectedFile || isUploading"
-        class="w-full mt-6 bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-full py-3 transition"
+        class="w-full mt-6 bg-green-500 hover:bg-green-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-500 text-black font-bold rounded-full py-3 shadow-lg shadow-green-500/10 transition"
       >
         {{ isUploading ? 'Uploading...' : 'Upload' }}
       </button>
     </div>
 
-    <button @click="router.push('/')" class="text-neutral-400 hover:text-white text-sm mt-4 underline">
+    <button
+      @click="router.push('/')"
+      class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm text-neutral-300 bg-neutral-800 hover:bg-neutral-700 hover:text-white transition"
+    >
+      <ArrowLeft :size="16" />
       Back to Library
     </button>
   </div>

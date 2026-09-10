@@ -55,3 +55,7 @@ export function uploadCover(songId, file) {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export function searchSongs(query) {
+  return api.get('/songs/search', { params: { q: query } })
+}

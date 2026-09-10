@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Home, Heart, Upload, Users, Plus, Library } from 'lucide-vue-next'
+import { Home, Search, Heart, Upload, Users, Plus, Library } from 'lucide-vue-next'
 import { listPlaylists, createPlaylist } from '@/services/playlists'
 import { useAuthStore } from '@/stores/auth'
 
@@ -42,6 +42,14 @@ defineExpose({ loadPlaylists })
       >
         <Home :size="18" />
         Home
+      </RouterLink>
+      <RouterLink
+        to="/search"
+        class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
+        active-class="text-white bg-neutral-800"
+      >
+        <Search :size="18" />
+        Search
       </RouterLink>
       <RouterLink
         to="/liked"

@@ -46,6 +46,7 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 
 			authed.POST("/songs/upload", songHandler.Upload)
 			authed.GET("/songs", songHandler.List)
+			authed.GET("/songs/search", songHandler.Search)
 			authed.GET("/songs/:id/stream", songHandler.Stream)
 			authed.GET("/songs/:id/cover", songHandler.Cover)
 			authed.PATCH("/songs/:id", songHandler.Update)

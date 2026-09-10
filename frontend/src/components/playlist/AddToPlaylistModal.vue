@@ -44,7 +44,10 @@ async function handleAdd(playlistId) {
         </li>
       </ul>
 
-      <button @click="emit('close')" class="mt-4 text-neutral-400 hover:text-white text-sm underline">
+      <button
+        @click="emit('close')"
+        class="mt-4 w-full bg-neutral-800 hover:bg-neutral-700 active:scale-[0.98] text-white font-medium rounded-full py-2 text-sm transition"
+      >
         Cancel
       </button>
     </div>

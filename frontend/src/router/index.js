@@ -5,8 +5,8 @@ import HomeView from '@/views/HomeView.vue'
 import UploadView from '@/views/UploadView.vue'
 import LikedSongsView from '@/views/LikedSongsView.vue'
 import PlaylistDetailView from '@/views/PlaylistDetailView.vue'
-
 import AdminUsersView from '@/views/AdminUsersView.vue'
+import SearchView from '@/views/SearchView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -45,6 +45,12 @@ const router = createRouter({
       name: 'admin-users',
       component: AdminUsersView,
       meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/search',
+      name: 'search',
+      component: SearchView,
+      meta: { requiresAuth: true },
     },
   ],
 })

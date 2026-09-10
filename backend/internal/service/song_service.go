@@ -245,3 +245,7 @@ func (s *SongService) UploadCover(songID, requestingUserID int, isAdmin bool, fi
 
 	return s.songRepo.UpdateCoverPath(songID, coverPath)
 }
+
+func (s *SongService) Search(userID int, query string) ([]models.Song, error) {
+	return s.songRepo.Search(userID, query, 30)
+}
