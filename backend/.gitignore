@@ -1,0 +1,14 @@
+# Go
+backend/.env
+backend/storage/audio/*
+backend/storage/covers/*
+!backend/storage/audio/.gitkeep
+!backend/storage/covers/.gitkeep
+
+# Vue (nanti dipakai pas frontend)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# OS
+.DS_Store
