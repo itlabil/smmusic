@@ -87,3 +87,7 @@ func (s *AuthService) ChangePassword(userID int, oldPassword, newPassword string
 
 	return s.userRepo.UpdatePassword(userID, string(newHash))
 }
+
+func (s *AuthService) ListUsers() ([]models.User, error) {
+	return s.userRepo.List()
+}

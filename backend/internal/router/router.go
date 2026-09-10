@@ -28,11 +28,19 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 		// Public routes
 		api.POST("/auth/login", authHandler.Login)
 
-		// Authenticated routes
+				// Authenticated routes
 		authed := api.Group("/")
 		authed.Use(middleware.AuthRequired(cfg.JWTSecret))
 		{
 			authed.POST("/auth/change-password", authHandler.ChangePassword)
+
+			// Admin-only routes
+			admin := authed.Group("/admin")
+			admin.Use(middleware.AdminRequired())
+			{
+				admin.POST("/users", authHandler.CreateUser)
+				admin.GET("/users", authHandler.ListUsers)
+			}
 		}
 	}
 
