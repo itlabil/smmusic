@@ -72,3 +72,76 @@ func (h *SongHandler) Stream(c *gin.Context) {
 	c.File(filePath)
 	_ = contentType
 }
+
+func (h *SongHandler) Cover(c *gin.Context) {
+	songID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid song id"})
+		return
+	}
+
+	coverPath, err := h.songService.GetCoverPath(songID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.File(coverPath)
+}
+
+type updateSongRequest struct {
+	Title  string  `json:"title" binding:"required"`
+	Artist string  `json:"artist" binding:"required"`
+	Album  *string `json:"album"`
+	Genre  *string `json:"genre"`
+}
+
+func (h *SongHandler) Update(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	role := c.GetString("role")
+	isAdmin := role == "admin"
+
+	songID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid song id"})
+		return
+	}
+
+	var req updateSongRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title and artist are required"})
+		return
+	}
+
+	if err := h.songService.UpdateMetadata(songID, userID, isAdmin, req.Title, req.Artist, req.Album, req.Genre); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "song updated"})
+}
+
+func (h *SongHandler) UploadCover(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	role := c.GetString("role")
+	isAdmin := role == "admin"
+
+	songID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid song id"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required (multipart field name: 'file')"})
+		return
+	}
+
+	if err := h.songService.UploadCover(songID, userID, isAdmin, fileHeader); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "cover uploaded"})
+}

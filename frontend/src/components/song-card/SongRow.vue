@@ -1,17 +1,28 @@
 <script setup>
+import { Heart, ListPlus, X, Music, Pencil } from 'lucide-vue-next'
+import { getCoverUrl } from '@/services/songs'
+
 defineProps({
   song: { type: Object, required: true },
   showRemove: { type: Boolean, default: false },
   showAddToPlaylist: { type: Boolean, default: true },
 })
-const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove'])
+const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'edit'])
 </script>
 
 <template>
   <div
     class="flex items-center gap-3 px-3 py-2 rounded hover:bg-neutral-800 cursor-pointer group"
   >
-    <div @click="emit('play')" class="w-10 h-10 bg-neutral-700 rounded flex-shrink-0"></div>
+    <div @click="emit('play')" class="w-10 h-10 bg-neutral-700 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+      <img
+        v-if="getCoverUrl(song)"
+        :src="getCoverUrl(song)"
+        class="w-full h-full object-cover"
+        alt=""
+      />
+      <Music v-else :size="16" class="text-neutral-500" />
+    </div>
     <div @click="emit('play')" class="min-w-0 flex-1">
       <p class="text-white text-sm font-medium truncate">{{ song.title }}</p>
       <p class="text-neutral-400 text-xs truncate">{{ song.artist }}</p>
@@ -23,30 +34,38 @@ const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove'])
     <button
       v-if="showAddToPlaylist"
       @click="emit('add-to-playlist')"
-      class="text-neutral-500 hover:text-white opacity-0 group-hover:opacity-100 transition text-sm px-2"
+      class="text-neutral-500 hover:text-white opacity-0 group-hover:opacity-100 transition p-1"
       title="Add to playlist"
     >
-      + Playlist
+      <ListPlus :size="18" />
     </button>
 
     <button
       @click="emit('toggle-like')"
       :class="[
-        'transition text-lg px-2',
+        'transition p-1',
         song.is_liked ? 'text-green-500' : 'text-neutral-500 hover:text-white opacity-0 group-hover:opacity-100',
       ]"
       :title="song.is_liked ? 'Unlike' : 'Like'"
     >
-      {{ song.is_liked ? '♥' : '♡' }}
+      <Heart :size="18" :fill="song.is_liked ? 'currentColor' : 'none'" />
+    </button>
+
+    <button
+      @click="emit('edit')"
+      class="text-neutral-500 hover:text-white opacity-0 group-hover:opacity-100 transition p-1"
+      title="Edit song"
+    >
+      <Pencil :size="16" />
     </button>
 
     <button
       v-if="showRemove"
       @click="emit('remove')"
-      class="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition text-sm px-2"
+      class="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition p-1"
       title="Remove from playlist"
     >
-      ✕
+      <X :size="18" />
     </button>
   </div>
 </template>

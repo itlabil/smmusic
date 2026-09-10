@@ -157,3 +157,19 @@ func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]model
 	}
 	return songs, nil
 }
+
+func (r *SongRepository) UpdateCoverPath(id int, coverPath string) error {
+	query := `UPDATE songs SET cover_path = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(query, coverPath, id)
+	return err
+}
+
+func (r *SongRepository) UpdateMetadata(id int, title, artist string, album, genre *string) error {
+	query := `
+		UPDATE songs
+		SET title = $1, artist = $2, album = $3, genre = $4, updated_at = NOW()
+		WHERE id = $5
+	`
+	_, err := r.db.Exec(query, title, artist, album, genre, id)
+	return err
+}

@@ -7,6 +7,9 @@ export const usePlayerStore = defineStore('player', () => {
   const currentIndex = ref(-1)
   const isPlaying = ref(false)
   const highQuality = ref(false)
+  const currentTime = ref(0)
+  const duration = ref(0)
+  const volume = ref(1)
   const audio = new Audio()
 
   const currentSong = computed(() =>
@@ -64,17 +67,38 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   audio.addEventListener('ended', next)
+  audio.addEventListener('timeupdate', () => {
+    currentTime.value = audio.currentTime
+  })
+  audio.addEventListener('loadedmetadata', () => {
+    duration.value = audio.duration
+  })
+
+  function seek(time) {
+    audio.currentTime = time
+    currentTime.value = time
+  }
+
+  function setVolume(value) {
+    volume.value = value
+    audio.volume = value
+  }
 
   return {
     queue,
     currentSong,
     isPlaying,
     highQuality,
+    currentTime,
+    duration,
+    volume,
     audio,
     playQueue,
     togglePlay,
     next,
     prev,
     toggleHighQuality,
+    seek,
+    setVolume,
   }
 })

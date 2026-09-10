@@ -80,7 +80,7 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 		return nil, err
 	}
 
-	artistFolder := slug.Generate(song.Artist)
+		artistFolder := slug.Generate(song.Artist)
 	destDir := filepath.Join(s.cfg.StorageAudioPath, artistFolder)
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 		return nil, err
 	}
 
-		if sourceFormat == "flac" {
+	if sourceFormat == "flac" {
 		song.FlacPath = &destPath
 	} else {
 		song.Mp3Path = &destPath
@@ -99,6 +99,21 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 
 	if err := s.songRepo.UpdatePaths(song.ID, song.FlacPath, song.Mp3Path); err != nil {
 		return nil, err
+	}
+
+	if len(meta.CoverData) > 0 {
+		coverDir := filepath.Join(s.cfg.StorageCoverPath, artistFolder)
+		if err := os.MkdirAll(coverDir, 0755); err != nil {
+			return nil, err
+		}
+		coverPath := filepath.Join(coverDir, fmt.Sprintf("%d.%s", song.ID, meta.CoverExt))
+		if err := os.WriteFile(coverPath, meta.CoverData, 0644); err != nil {
+			return nil, err
+		}
+		song.CoverPath = &coverPath
+		if err := s.songRepo.UpdateCoverPath(song.ID, coverPath); err != nil {
+			return nil, err
+		}
 	}
 
 	if sourceFormat == "flac" {
@@ -166,4 +181,67 @@ func (s *SongService) GetStreamPath(songID int, quality string) (filePath string
 	}
 
 	return *song.Mp3Path, "audio/mpeg", nil
+}
+
+func (s *SongService) GetCoverPath(songID int) (string, error) {
+	song, err := s.songRepo.FindByID(songID)
+	if err != nil {
+		return "", err
+	}
+	if song == nil || song.CoverPath == nil {
+		return "", fmt.Errorf("no cover art available")
+	}
+	return *song.CoverPath, nil
+}
+
+func (s *SongService) UpdateMetadata(songID, requestingUserID int, isAdmin bool, title, artist string, album, genre *string) error {
+	song, err := s.songRepo.FindByID(songID)
+	if err != nil {
+		return err
+	}
+	if song == nil {
+		return fmt.Errorf("song not found")
+	}
+
+	// Only admin or the original uploader can edit metadata
+	if !isAdmin && (song.UploadedBy == nil || *song.UploadedBy != requestingUserID) {
+		return fmt.Errorf("you do not have permission to edit this song")
+	}
+
+	return s.songRepo.UpdateMetadata(songID, title, artist, album, genre)
+}
+
+func (s *SongService) UploadCover(songID, requestingUserID int, isAdmin bool, fileHeader *multipart.FileHeader) error {
+	song, err := s.songRepo.FindByID(songID)
+	if err != nil {
+		return err
+	}
+	if song == nil {
+		return fmt.Errorf("song not found")
+	}
+
+	if !isAdmin && (song.UploadedBy == nil || *song.UploadedBy != requestingUserID) {
+		return fmt.Errorf("you do not have permission to edit this song")
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		return fmt.Errorf("unsupported image type: %s (only .jpg and .png allowed)", ext)
+	}
+	if ext == ".jpeg" {
+		ext = ".jpg"
+	}
+
+	artistFolder := slug.Generate(song.Artist)
+	coverDir := filepath.Join(s.cfg.StorageCoverPath, artistFolder)
+	if err := os.MkdirAll(coverDir, 0755); err != nil {
+		return err
+	}
+
+	coverPath := filepath.Join(coverDir, fmt.Sprintf("%d%s", songID, ext))
+	if err := saveMultipartFile(fileHeader, coverPath); err != nil {
+		return err
+	}
+
+	return s.songRepo.UpdateCoverPath(songID, coverPath)
 }

@@ -18,6 +18,12 @@ export function getStreamUrl(songId, quality = 'standard') {
   return `/api/songs/${songId}/stream?quality=${quality}&token=${token}`
 }
 
+export function getCoverUrl(song) {
+  if (!song.cover_path) return null
+  const token = localStorage.getItem('token')
+  return `/api/songs/${song.id}/cover?token=${token}`
+}
+
 export function likeSong(songId) {
   return api.post(`/songs/${songId}/like`)
 }
@@ -36,4 +42,16 @@ export function recordPlay(songId) {
 
 export function listRecentlyPlayed() {
   return api.get('/songs/recently-played')
+}
+
+export function updateSong(songId, { title, artist, album, genre }) {
+  return api.patch(`/songs/${songId}`, { title, artist, album, genre })
+}
+
+export function uploadCover(songId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post(`/songs/${songId}/cover`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }

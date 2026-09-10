@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
 import AppSidebar from '@/components/sidebar/AppSidebar.vue'
+import MobileNav from '@/components/sidebar/MobileNav.vue'
 import NowPlayingBar from '@/components/player/NowPlayingBar.vue'
 
 const route = useRoute()
@@ -21,5 +22,6 @@ const isAuthPage = computed(() => route.name === 'login')
       </main>
     </div>
     <NowPlayingBar />
+    <MobileNav />
   </div>
 </template>

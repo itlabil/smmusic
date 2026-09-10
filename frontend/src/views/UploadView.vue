@@ -54,8 +54,8 @@ async function handleUpload() {
 </script>
 
 <template>
-  <div class="p-8 max-w-2xl">
-    <h1 class="text-white text-2xl font-bold mb-6">Upload Song</h1>
+  <div class="p-4 md:p-8 max-w-2xl">
+    <h1 class="text-white text-xl md:text-2xl font-bold mb-6">Upload Song</h1>
 
     <div class="bg-neutral-900 rounded-lg p-8">
       <label
