@@ -39,7 +39,7 @@ func (r *InteractionRepository) ListLikedSongs(userID int) ([]models.Song, error
 		           SELECT 1 FROM playlist_songs ps
 		           INNER JOIN playlists p ON p.id = ps.playlist_id
 		           WHERE ps.song_id = s.id AND p.user_id = $1
-		       ) AS is_in_playlist
+		       ) AS is_in_playlist, l.liked_at
 		FROM songs s
 		INNER JOIN liked_songs l ON l.song_id = s.id
 		WHERE l.user_id = $1
@@ -57,10 +57,11 @@ func (r *InteractionRepository) ListLikedSongs(userID int) ([]models.Song, error
 		if err := rows.Scan(
 			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
 			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsInPlaylist,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsInPlaylist, &s.AddedAt,
 		); err != nil {
 			return nil, err
 		}
+		s.IsLiked = true
 		songs = append(songs, s)
 	}
 	return songs, nil
@@ -112,4 +113,24 @@ func (r *InteractionRepository) ListRecentlyPlayed(userID, limit int) ([]models.
 		songs = append(songs, s)
 	}
 	return songs, nil
+}
+
+type LikedSongsSummary struct {
+	SongCount        int `json:"song_count"`
+	TotalDurationSec int `json:"total_duration_sec"`
+}
+
+func (r *InteractionRepository) GetLikedSongsSummary(userID int) (*LikedSongsSummary, error) {
+	query := `
+		SELECT COUNT(l.song_id), COALESCE(SUM(s.duration_seconds), 0)
+		FROM liked_songs l
+		INNER JOIN songs s ON s.id = l.song_id
+		WHERE l.user_id = $1
+	`
+	summary := &LikedSongsSummary{}
+	err := r.db.QueryRow(query, userID).Scan(&summary.SongCount, &summary.TotalDurationSec)
+	if err != nil {
+		return nil, err
+	}
+	return summary, nil
 }

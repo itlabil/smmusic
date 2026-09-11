@@ -19,4 +19,5 @@ type Song struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 	IsLiked          bool      `json:"is_liked"`
 	IsInPlaylist     bool      `json:"is_in_playlist"`
+	AddedAt          *time.Time `json:"added_at,omitempty"`
 }

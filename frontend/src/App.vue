@@ -4,9 +4,12 @@ import { computed } from 'vue'
 import AppSidebar from '@/components/sidebar/AppSidebar.vue'
 import MobileNav from '@/components/sidebar/MobileNav.vue'
 import NowPlayingBar from '@/components/player/NowPlayingBar.vue'
+import QueuePanel from '@/components/player/QueuePanel.vue'
+import { usePlayerStore } from '@/stores/player'
 
 const route = useRoute()
 const isAuthPage = computed(() => route.name === 'login')
+const player = usePlayerStore()
 </script>
 
 <template>
@@ -20,6 +23,7 @@ const isAuthPage = computed(() => route.name === 'login')
       <main class="flex-1 overflow-y-auto">
         <router-view />
       </main>
+      <QueuePanel v-if="player.isQueueOpen" />
     </div>
     <NowPlayingBar />
     <MobileNav />

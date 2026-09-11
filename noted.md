@@ -1,0 +1,8 @@
+- Menu playlist tidak aktif di side bar, dan menu yang aktif beri text hijau seperti button aktif, biar warna sama
+- tanda lagu yang diputar entah itu di home/liked song/playlist biar tahu tanda beda nya
+- hapus lagu yang di upload, yang boleh hapus adalah user yang upload/admin
+- belum nemu bedany mp3/flac saat di play, entah kualitas headset, atau memang ada hal lain, padahal headset saya bagus, AKG K52.
+- pilihan enable flac, suffle, repeat, queue, tetap tersimpan walaupun refresh, biar tidak selalu set ulang.
+- delete akun user sebagai admin. 
+- button logout akun
+- perbaikan saat add playlist. kurang bagus, polish lagi

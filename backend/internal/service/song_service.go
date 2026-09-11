@@ -11,6 +11,7 @@ import (
 	"github.com/itlabil/smmusic/backend/internal/config"
 	"github.com/itlabil/smmusic/backend/internal/models"
 	"github.com/itlabil/smmusic/backend/internal/repository"
+	"github.com/itlabil/smmusic/backend/pkg/ffmpeg"
 	"github.com/itlabil/smmusic/backend/pkg/slug"
 	"github.com/itlabil/smmusic/backend/pkg/tagreader"
 )
@@ -57,9 +58,15 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 		sourceFormat = "flac"
 	}
 
+	durationSeconds, err := ffmpeg.GetDuration(tempPath)
+	if err != nil {
+		durationSeconds = 0 // fallback gracefully; don't fail the whole upload just for missing duration
+	}
+
 	song := &models.Song{
 		Title:           meta.Title,
 		Artist:          meta.Artist,
+		DurationSeconds: &durationSeconds,
 		SourceFormat:    sourceFormat,
 		TranscodeStatus: "done", // default; overridden below if flac
 		UploadedBy:      &uploadedBy,
@@ -158,7 +165,14 @@ func copyFile(src, dest string) error {
 }
 
 func (s *SongService) List(userID, limit, offset int) ([]models.Song, error) {
-	return s.songRepo.ListWithLikedStatus(userID, limit, offset)
+	songs, err := s.songRepo.ListWithLikedStatus(userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	for i := range songs {
+		songs[i].AddedAt = &songs[i].CreatedAt
+	}
+	return songs, nil
 }
 
 // GetStreamPath resolves which file to serve based on requested quality

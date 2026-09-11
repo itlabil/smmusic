@@ -59,3 +59,7 @@ export function uploadCover(songId, file) {
 export function searchSongs(query) {
   return api.get('/songs/search', { params: { q: query } })
 }
+
+export function getLikedSongsSummary() {
+  return api.get('/songs/liked/summary')
+}

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { listSongs, listRecentlyPlayed, likeSong, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
 import SongRow from '@/components/song-card/SongRow.vue'
+import SongListHeader from '@/components/song-card/SongListHeader.vue'
 import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
 
@@ -73,6 +74,7 @@ async function handleUpdated() {
   <div class="p-4 md:p-8">
     <div v-if="recentSongs.length > 0" class="mb-10">
       <h2 class="text-white text-lg md:text-xl font-bold mb-4">Recently Played</h2>
+      <SongListHeader :show-index="false" />
       <div class="divide-y divide-neutral-800/60">
         <SongRow
           v-for="(song, index) in recentSongs"
@@ -92,16 +94,20 @@ async function handleUpdated() {
       No songs yet. Upload your first song to get started.
     </div>
 
-    <div v-else class="divide-y divide-neutral-800/60">
-      <SongRow
-        v-for="(song, index) in songs"
-        :key="song.id"
-        :song="song"
-        @play="playSong(index)"
-        @toggle-like="handleToggleLike(song)"
-        @add-to-playlist="openAddToPlaylist(song.id)"
-        @edit="openEdit(song)"
-      />
+    <div v-else>
+      <SongListHeader />
+      <div class="divide-y divide-neutral-800/60">
+        <SongRow
+          v-for="(song, index) in songs"
+          :key="song.id"
+          :song="song"
+          :index="index"
+          @play="playSong(index)"
+          @toggle-like="handleToggleLike(song)"
+          @add-to-playlist="openAddToPlaylist(song.id)"
+          @edit="openEdit(song)"
+        />
+      </div>
     </div>
 
     <AddToPlaylistModal

@@ -55,6 +55,7 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 			authed.POST("/songs/:id/like", interactionHandler.Like)
 			authed.DELETE("/songs/:id/like", interactionHandler.Unlike)
 			authed.GET("/songs/liked", interactionHandler.ListLiked)
+			authed.GET("/songs/liked/summary", interactionHandler.LikedSummary)
 
 			authed.POST("/songs/:id/play", interactionHandler.RecordPlay)
 			authed.GET("/songs/recently-played", interactionHandler.ListRecentlyPlayed)
@@ -63,6 +64,7 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 			authed.GET("/playlists", playlistHandler.List)
 			authed.PATCH("/playlists/:id", playlistHandler.Rename)
 			authed.DELETE("/playlists/:id", playlistHandler.Delete)
+			authed.GET("/playlists/:id", playlistHandler.GetDetail)
 			authed.GET("/playlists/:id/songs", playlistHandler.ListSongs)
 			authed.POST("/playlists/:id/songs", playlistHandler.AddSong)
 			authed.DELETE("/playlists/:id/songs/:songId", playlistHandler.RemoveSong)

@@ -185,3 +185,19 @@ func handlePlaylistError(c *gin.Context, err error) {
 	}
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 }
+
+func (h *PlaylistHandler) GetDetail(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	playlistID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid playlist id"})
+		return
+	}
+
+	detail, err := h.service.GetDetail(playlistID, userID)
+	if err != nil {
+		handlePlaylistError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"playlist": detail})
+}

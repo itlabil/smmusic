@@ -4,6 +4,7 @@ import { searchSongs, likeSong, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
 import { Search } from 'lucide-vue-next'
 import SongRow from '@/components/song-card/SongRow.vue'
+import SongListHeader from '@/components/song-card/SongListHeader.vue'
 import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
 
@@ -79,16 +80,19 @@ function openEdit(song) {
       No results for "{{ query }}"
     </div>
 
-    <div v-else-if="songs.length > 0" class="divide-y divide-neutral-800/60">
-      <SongRow
-        v-for="(song, index) in songs"
-        :key="song.id"
-        :song="song"
-        @play="playSong(index)"
-        @toggle-like="handleToggleLike(song)"
-        @add-to-playlist="openAddToPlaylist(song.id)"
-        @edit="openEdit(song)"
-      />
+    <div v-else-if="songs.length > 0">
+      <SongListHeader :show-index="false" />
+      <div class="divide-y divide-neutral-800/60">
+        <SongRow
+          v-for="(song, index) in songs"
+          :key="song.id"
+          :song="song"
+          @play="playSong(index)"
+          @toggle-like="handleToggleLike(song)"
+          @add-to-playlist="openAddToPlaylist(song.id)"
+          @edit="openEdit(song)"
+        />
+      </div>
     </div>
 
     <AddToPlaylistModal

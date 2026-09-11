@@ -32,3 +32,7 @@ func (s *InteractionService) RecordPlay(userID, songID int) error {
 func (s *InteractionService) ListRecentlyPlayed(userID int) ([]models.Song, error) {
 	return s.repo.ListRecentlyPlayed(userID, 20) // last 20 unique songs
 }
+
+func (s *InteractionService) GetLikedSongsSummary(userID int) (*repository.LikedSongsSummary, error) {
+	return s.repo.GetLikedSongsSummary(userID)
+}

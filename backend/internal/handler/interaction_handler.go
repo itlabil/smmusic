@@ -80,3 +80,13 @@ func (h *InteractionHandler) ListRecentlyPlayed(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"songs": songs})
 }
+
+func (h *InteractionHandler) LikedSummary(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	summary, err := h.service.GetLikedSongsSummary(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"summary": summary})
+}

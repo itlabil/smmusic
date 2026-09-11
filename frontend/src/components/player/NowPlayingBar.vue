@@ -1,5 +1,5 @@
 <script setup>
-import { SkipBack, SkipForward, Play, Pause, Volume2, Volume1, VolumeX, Music } from 'lucide-vue-next'
+import { SkipBack, SkipForward, Play, Pause, Volume2, Volume1, VolumeX, Music, Shuffle, Repeat, Repeat1, ListMusic } from 'lucide-vue-next'
 import { usePlayerStore } from '@/stores/player'
 import { formatDuration } from '@/utils/format'
 import { getCoverUrl } from '@/services/songs'
@@ -39,6 +39,13 @@ function handleVolumeChange(e) {
 
       <div class="flex-1 flex flex-col items-center justify-center gap-1 px-2">
         <div class="flex items-center gap-4">
+          <button
+            @click="player.toggleShuffle"
+            :class="['transition', player.isShuffled ? 'text-green-500' : 'text-neutral-400 hover:text-white']"
+            title="Shuffle"
+          >
+            <Shuffle :size="18" />
+          </button>
           <button @click="player.prev" class="text-neutral-400 hover:text-white transition">
             <SkipBack :size="20" fill="currentColor" />
           </button>
@@ -51,6 +58,14 @@ function handleVolumeChange(e) {
           </button>
           <button @click="player.next" class="text-neutral-400 hover:text-white transition">
             <SkipForward :size="20" fill="currentColor" />
+          </button>
+          <button
+            @click="player.cycleRepeatMode"
+            :class="['transition', player.repeatMode !== 'off' ? 'text-green-500' : 'text-neutral-400 hover:text-white']"
+            title="Repeat"
+          >
+            <Repeat1 v-if="player.repeatMode === 'one'" :size="18" />
+            <Repeat v-else :size="18" />
           </button>
         </div>
 
@@ -79,6 +94,14 @@ function handleVolumeChange(e) {
           ]"
         >
           FLAC
+        </button>
+
+        <button
+          @click="player.toggleQueuePanel"
+          :class="['transition p-1 hidden sm:block', player.isQueueOpen ? 'text-green-500' : 'text-neutral-400 hover:text-white']"
+          title="Queue"
+        >
+          <ListMusic :size="18" />
         </button>
 
         <div class="hidden sm:flex items-center gap-1.5">

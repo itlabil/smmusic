@@ -90,7 +90,7 @@ func (r *PlaylistRepository) ListSongs(playlistID, userID int) ([]models.Song, e
 	query := `
 		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
 		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
-		       (l.user_id IS NOT NULL) AS is_liked
+		       (l.user_id IS NOT NULL) AS is_liked, ps.added_at
 		FROM songs s
 		INNER JOIN playlist_songs ps ON ps.song_id = s.id
 		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $2
@@ -106,10 +106,10 @@ func (r *PlaylistRepository) ListSongs(playlistID, userID int) ([]models.Song, e
 	var songs []models.Song
 	for rows.Next() {
 		var s models.Song
-				if err := rows.Scan(
+		if err := rows.Scan(
 			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
 			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked, &s.AddedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -137,4 +137,37 @@ func (r *PlaylistRepository) Reorder(playlistID int, songIDsInOrder []int) error
 	}
 
 	return tx.Commit()
+}
+
+type PlaylistDetail struct {
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	OwnerUsername   string `json:"owner_username"`
+	SongCount       int    `json:"song_count"`
+	TotalDurationSec int   `json:"total_duration_sec"`
+}
+
+func (r *PlaylistRepository) GetDetail(playlistID int) (*PlaylistDetail, error) {
+	query := `
+		SELECT p.id, p.name, u.username,
+		       COUNT(ps.song_id),
+		       COALESCE(SUM(s.duration_seconds), 0)
+		FROM playlists p
+		INNER JOIN users u ON u.id = p.user_id
+		LEFT JOIN playlist_songs ps ON ps.playlist_id = p.id
+		LEFT JOIN songs s ON s.id = ps.song_id
+		WHERE p.id = $1
+		GROUP BY p.id, p.name, u.username
+	`
+	d := &PlaylistDetail{}
+	err := r.db.QueryRow(query, playlistID).Scan(
+		&d.ID, &d.Name, &d.OwnerUsername, &d.SongCount, &d.TotalDurationSec,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }

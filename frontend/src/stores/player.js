@@ -4,9 +4,13 @@ import { getStreamUrl, recordPlay } from '@/services/songs'
 
 export const usePlayerStore = defineStore('player', () => {
   const queue = ref([])
+  const originalQueue = ref([])
   const currentIndex = ref(-1)
   const isPlaying = ref(false)
   const highQuality = ref(false)
+  const isShuffled = ref(false)
+  const repeatMode = ref('off') // 'off' | 'all' | 'one'
+  const isQueueOpen = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
   const volume = ref(1)
@@ -17,9 +21,41 @@ export const usePlayerStore = defineStore('player', () => {
   )
 
   function playQueue(songs, startIndex = 0) {
-    queue.value = songs
-    currentIndex.value = startIndex
+    originalQueue.value = songs
+    const startSong = songs[startIndex]
+
+    if (isShuffled.value) {
+      queue.value = shuffleExcluding(songs, startSong)
+      currentIndex.value = 0
+    } else {
+      queue.value = songs
+      currentIndex.value = startIndex
+    }
+
     loadAndPlay()
+  }
+
+  function shuffleExcluding(songs, keepFirst) {
+    const rest = songs.filter((s) => s.id !== keepFirst.id)
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[rest[i], rest[j]] = [rest[j], rest[i]]
+    }
+    return [keepFirst, ...rest]
+  }
+
+  function toggleShuffle() {
+    isShuffled.value = !isShuffled.value
+    const current = currentSong.value
+    if (!current) return
+
+    if (isShuffled.value) {
+      queue.value = shuffleExcluding(originalQueue.value, current)
+      currentIndex.value = 0
+    } else {
+      queue.value = originalQueue.value
+      currentIndex.value = originalQueue.value.findIndex((s) => s.id === current.id)
+    }
   }
 
   function loadAndPlay() {
@@ -47,7 +83,25 @@ export const usePlayerStore = defineStore('player', () => {
     if (currentIndex.value < queue.value.length - 1) {
       currentIndex.value++
       loadAndPlay()
+    } else if (repeatMode.value === 'all') {
+      currentIndex.value = 0
+      loadAndPlay()
     }
+  }
+
+  function cycleRepeatMode() {
+    if (repeatMode.value === 'off') repeatMode.value = 'all'
+    else if (repeatMode.value === 'all') repeatMode.value = 'one'
+    else repeatMode.value = 'off'
+  }
+
+  function toggleQueuePanel() {
+    isQueueOpen.value = !isQueueOpen.value
+  }
+
+  function jumpTo(index) {
+    currentIndex.value = index
+    loadAndPlay()
   }
 
   function prev() {
@@ -66,7 +120,14 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
-  audio.addEventListener('ended', next)
+  audio.addEventListener('ended', () => {
+    if (repeatMode.value === 'one') {
+      audio.currentTime = 0
+      audio.play()
+    } else {
+      next()
+    }
+  })
   audio.addEventListener('timeupdate', () => {
     currentTime.value = audio.currentTime
   })
@@ -86,9 +147,13 @@ export const usePlayerStore = defineStore('player', () => {
 
   return {
     queue,
+    currentIndex,
     currentSong,
     isPlaying,
     highQuality,
+    isShuffled,
+    repeatMode,
+    isQueueOpen,
     currentTime,
     duration,
     volume,
@@ -98,6 +163,10 @@ export const usePlayerStore = defineStore('player', () => {
     next,
     prev,
     toggleHighQuality,
+    toggleShuffle,
+    cycleRepeatMode,
+    toggleQueuePanel,
+    jumpTo,
     seek,
     setVolume,
   }

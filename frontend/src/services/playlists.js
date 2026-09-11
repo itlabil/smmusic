@@ -16,6 +16,10 @@ export function deletePlaylist(playlistId) {
   return api.delete(`/playlists/${playlistId}`)
 }
 
+export function getPlaylistDetail(playlistId) {
+  return api.get(`/playlists/${playlistId}`)
+}
+
 export function listPlaylistSongs(playlistId) {
   return api.get(`/playlists/${playlistId}/songs`)
 }
