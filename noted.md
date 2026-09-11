@@ -1,3 +1,4 @@
+- buat tampilan fullscreen nowplayingnya dalam 1 layar, ini tombol button berada dibawah, dan harus scroll, kemudian untuk mode flac,queue tetap ada tambahkan disamping volume bar, dan bottom nav tetap terlihat
 - Menu playlist tidak aktif di side bar, dan menu yang aktif beri text hijau seperti button aktif, biar warna sama
 - tanda lagu yang diputar entah itu di home/liked song/playlist biar tahu tanda beda nya
 - hapus lagu yang di upload, yang boleh hapus adalah user yang upload/admin

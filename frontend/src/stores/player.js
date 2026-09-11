@@ -11,6 +11,7 @@ export const usePlayerStore = defineStore('player', () => {
   const isShuffled = ref(false)
   const repeatMode = ref('off') // 'off' | 'all' | 'one'
   const isQueueOpen = ref(false)
+  const isFullScreenOpen = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
   const volume = ref(1)
@@ -99,6 +100,10 @@ export const usePlayerStore = defineStore('player', () => {
     isQueueOpen.value = !isQueueOpen.value
   }
 
+  function toggleFullScreen() {
+    isFullScreenOpen.value = !isFullScreenOpen.value
+  }
+
   function jumpTo(index) {
     currentIndex.value = index
     loadAndPlay()
@@ -154,6 +159,7 @@ export const usePlayerStore = defineStore('player', () => {
     isShuffled,
     repeatMode,
     isQueueOpen,
+    isFullScreenOpen,
     currentTime,
     duration,
     volume,
@@ -166,6 +172,7 @@ export const usePlayerStore = defineStore('player', () => {
     toggleShuffle,
     cycleRepeatMode,
     toggleQueuePanel,
+    toggleFullScreen,
     jumpTo,
     seek,
     setVolume,
