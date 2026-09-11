@@ -1,9 +1,11 @@
-- buat tampilan fullscreen nowplayingnya dalam 1 layar, ini tombol button berada dibawah, dan harus scroll, kemudian untuk mode flac,queue tetap ada tambahkan disamping volume bar, dan bottom nav tetap terlihat
-- Menu playlist tidak aktif di side bar, dan menu yang aktif beri text hijau seperti button aktif, biar warna sama
-- tanda lagu yang diputar entah itu di home/liked song/playlist biar tahu tanda beda nya
+- buat tampilan fullscreen nowplayingnya dalam 1 layar, ini tombol button berada dibawah tidak terlihat, dan harus scroll, kemudian untuk button enable flac dan button queue tetap ada tambahkan disamping volume bar, dan bottom nav tetap terlihat
+- saat dimenu playlist mode mobile, untuk button hapus dari plylist masukkan ke button titik 3
+- warna hover atau menu aktif bootm nav buat hijau
+- Menu playlist tidak aktif di sidebar, maksudnya saat klik salahsatu menu playlist, dia tidak ada hover button active nya, dan menu yang aktif beri text hijau seperti button aktif, biar warna sama
+- tanda lagu yang diputar entah itu di home/liked song/playlist biar tahu tanda beda nya, kalau di spotify di baian sebelah kiri dari cover, ada animasi equalizer yang bergerak" berwarna hijau, dan lagu yang diplay, juga beri tanda teks title nya hijau.
 - hapus lagu yang di upload, yang boleh hapus adalah user yang upload/admin
-- belum nemu bedany mp3/flac saat di play, entah kualitas headset, atau memang ada hal lain, padahal headset saya bagus, AKG K52.
+- belum nemu bedany mp3/flac saat di play, entah kualitas headset, atau memang ada hal lain, padahal headset saya bagus, AKG K52. atau ada  alasan lain seperti transcode. entah ,, apa kita bisa tahu kualitasnya? selain dari beda size antara flac dan mp3.
 - pilihan enable flac, suffle, repeat, queue, tetap tersimpan walaupun refresh, biar tidak selalu set ulang.
 - delete akun user sebagai admin. 
 - button logout akun
-- perbaikan saat add playlist. kurang bagus, polish lagi
+- perbaikan saat add playlist, ada list playlist yang dibuat, nah list ini kurang bagus tampilannya. polish lagi

@@ -13,7 +13,7 @@ defineProps({
     </div>
     <div class="w-40 flex-shrink-0">Album</div>
     <div class="w-28 flex-shrink-0">Date Added</div>
-    <div class="w-12 flex-shrink-0"></div>
+    <div class="w-12 flex-shrink-0">Type</div>
     <div class="w-12 flex-shrink-0 text-right pr-2">Duration</div>
     <div class="w-40 flex-shrink-0"></div>
   </div>
