@@ -1,5 +1,6 @@
 <script setup>
-import { Heart, ListPlus, X, Music, Pencil, GripVertical } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Heart, ListPlus, X, Music, Pencil, GripVertical, MoreVertical } from 'lucide-vue-next'
 import { getCoverUrl } from '@/services/songs'
 import { formatDate, formatDuration } from '@/utils/format'
 
@@ -11,6 +12,13 @@ defineProps({
   draggable: { type: Boolean, default: false },
 })
 const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'edit'])
+
+const showMobileMenu = ref(false)
+
+function handleMobileAction(action) {
+  emit(action)
+  showMobileMenu.value = false
+}
 </script>
 
 <template>
@@ -19,7 +27,7 @@ const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'e
       <div v-if="draggable" class="text-neutral-600 group-hover:text-neutral-400 cursor-grab active:cursor-grabbing flex-shrink-0">
         <GripVertical :size="16" />
       </div>
-      <span v-if="index !== null" class="text-neutral-400 text-sm w-4 text-right flex-shrink-0 hidden sm:block">
+      <span v-if="index !== null" class="hidden lg:block text-neutral-400 text-sm w-4 text-right flex-shrink-0">
         {{ index + 1 }}
       </span>
       <div @click="emit('play')" class="w-10 h-10 bg-neutral-700 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
@@ -32,38 +40,39 @@ const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'e
       </div>
     </div>
 
-    <div class="hidden sm:block w-40 flex-shrink-0 min-w-0">
+    <div class="hidden lg:block w-40 flex-shrink-0 min-w-0">
       <p class="text-neutral-400 text-sm truncate">{{ song.album || '-' }}</p>
     </div>
 
-    <div class="hidden sm:block w-28 flex-shrink-0">
+    <div class="hidden lg:block w-28 flex-shrink-0">
       <p class="text-neutral-400 text-sm whitespace-nowrap">{{ formatDate(song.added_at) }}</p>
     </div>
 
-    <div class="w-16 flex-shrink-0 text-right">
-      <span class="text-neutral-400 text-sm hidden sm:block">
-        {{ formatDuration(song.duration_seconds) }}
-      </span>
-    </div>
-
-    <div class="w-12 flex-shrink-0 flex items-center justify-end">
+    <div class="lg:w-12 flex-shrink-0 flex items-center justify-end">
       <span v-if="song.source_format === 'flac'" class="text-xs text-green-500 border border-green-500 rounded px-1.5 whitespace-nowrap">
         FLAC
       </span>
     </div>
 
-    <div class="w-40 flex-shrink-0 flex items-center justify-end gap-1">
-      <button
-        v-if="showAddToPlaylist"
-        @click="emit('add-to-playlist')"
-        :class="[
-          'p-1.5 rounded-full transition hover:bg-neutral-700',
-          song.is_in_playlist ? 'text-green-500' : 'text-neutral-400 hover:text-white',
-        ]"
-        title="Add to playlist"
-      >
-        <ListPlus :size="18" />
-      </button>
+    <div class="lg:w-12 flex-shrink-0 text-right">
+      <span class="text-neutral-400 text-sm whitespace-nowrap">
+        {{ formatDuration(song.duration_seconds) }}
+      </span>
+    </div>
+
+    <div class="w-auto lg:w-40 flex-shrink-0 flex items-center justify-end gap-1 relative">
+      <div v-if="showAddToPlaylist" class="hidden lg:block">
+        <button
+          @click="emit('add-to-playlist')"
+          :class="[
+            'p-1.5 rounded-full transition hover:bg-neutral-700',
+            song.is_in_playlist ? 'text-green-500' : 'text-neutral-400 hover:text-white',
+          ]"
+          title="Add to playlist"
+        >
+          <ListPlus :size="18" />
+        </button>
+      </div>
 
       <button
         @click="emit('toggle-like')"
@@ -76,13 +85,15 @@ const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'e
         <Heart :size="18" :fill="song.is_liked ? 'currentColor' : 'none'" />
       </button>
 
-      <button
-        @click="emit('edit')"
-        class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-white"
-        title="Edit song"
-      >
-        <Pencil :size="16" />
-      </button>
+      <div class="hidden lg:block">
+        <button
+          @click="emit('edit')"
+          class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-white"
+          title="Edit song"
+        >
+          <Pencil :size="16" />
+        </button>
+      </div>
 
       <button
         v-if="showRemove"
@@ -92,6 +103,40 @@ const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'e
       >
         <X :size="18" />
       </button>
+
+      <div class="lg:hidden">
+        <button
+          @click.stop="showMobileMenu = !showMobileMenu"
+          class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-white"
+        >
+          <MoreVertical :size="18" />
+        </button>
+
+        <div
+          v-if="showMobileMenu"
+          class="absolute right-0 top-full mt-1 bg-neutral-800 rounded-lg shadow-xl overflow-hidden z-10 w-44"
+          @click.stop
+        >
+          <button
+            v-if="showAddToPlaylist"
+            @click="handleMobileAction('add-to-playlist')"
+            :class="[
+              'w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left hover:bg-neutral-700 transition',
+              song.is_in_playlist ? 'text-green-500' : 'text-white',
+            ]"
+          >
+            <ListPlus :size="16" />
+            Add to Playlist
+          </button>
+          <button
+            @click="handleMobileAction('edit')"
+            class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left text-white hover:bg-neutral-700 transition"
+          >
+            <Pencil :size="16" />
+            Edit Song
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

@@ -1,13 +1,15 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Home, Search, Heart, Upload, Users, Plus, Library } from 'lucide-vue-next'
+import { Home, Search, Heart, Upload, Users, Plus, Library, X } from 'lucide-vue-next'
 import { listPlaylists, createPlaylist } from '@/services/playlists'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 
 const playlists = ref([])
 const router = useRouter()
 const authStore = useAuthStore()
+const ui = useUiStore()
 
 async function loadPlaylists() {
   const res = await listPlaylists()
@@ -22,21 +24,43 @@ async function handleCreatePlaylist() {
 
   const res = await createPlaylist(name.trim())
   playlists.value.unshift(res.data.playlist)
+  ui.closeMobileMenu()
   router.push(`/playlists/${res.data.playlist.id}`)
+}
+
+function handleNavigate() {
+  ui.closeMobileMenu()
 }
 
 defineExpose({ loadPlaylists })
 </script>
 
 <template>
-  <aside class="w-60 bg-black h-full flex-col text-neutral-300 flex-shrink-0 hidden md:flex">
-    <div class="p-6">
+  <!-- Mobile overlay backdrop -->
+  <div
+    v-if="ui.isMobileMenuOpen"
+    class="fixed inset-0 bg-black/60 z-40 md:hidden"
+    @click="ui.closeMobileMenu"
+  ></div>
+
+  <aside
+    :class="[
+      'w-64 bg-black h-full flex-col text-neutral-300 flex-shrink-0 z-50 transition-transform duration-200',
+      'fixed inset-y-0 left-0 md:static md:flex md:translate-x-0',
+      ui.isMobileMenuOpen ? 'flex translate-x-0' : 'hidden -translate-x-full',
+    ]"
+  >
+    <div class="p-6 flex items-center justify-between">
       <h1 class="text-white text-xl font-bold tracking-tight">SMMusic</h1>
+      <button @click="ui.closeMobileMenu" class="text-neutral-400 hover:text-white md:hidden">
+        <X :size="20" />
+      </button>
     </div>
 
     <nav class="px-3 space-y-1">
       <RouterLink
         to="/"
+        @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
         active-class="text-white bg-neutral-800"
       >
@@ -45,6 +69,7 @@ defineExpose({ loadPlaylists })
       </RouterLink>
       <RouterLink
         to="/search"
+        @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
         active-class="text-white bg-neutral-800"
       >
@@ -53,6 +78,7 @@ defineExpose({ loadPlaylists })
       </RouterLink>
       <RouterLink
         to="/liked"
+        @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
         active-class="text-white bg-neutral-800"
       >
@@ -61,6 +87,7 @@ defineExpose({ loadPlaylists })
       </RouterLink>
       <RouterLink
         to="/upload"
+        @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
         active-class="text-white bg-neutral-800"
       >
@@ -70,6 +97,7 @@ defineExpose({ loadPlaylists })
       <RouterLink
         v-if="authStore.isAdmin"
         to="/admin/users"
+        @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
         active-class="text-white bg-neutral-800"
       >
@@ -97,6 +125,7 @@ defineExpose({ loadPlaylists })
         <li v-for="playlist in playlists" :key="playlist.id">
           <RouterLink
             :to="`/playlists/${playlist.id}`"
+            @click="handleNavigate"
             class="block py-1.5 text-sm text-neutral-400 hover:text-white transition truncate"
             active-class="text-white font-medium"
           >

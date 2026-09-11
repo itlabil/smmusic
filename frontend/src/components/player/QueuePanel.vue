@@ -9,7 +9,7 @@ const upcoming = () => player.queue.slice(player.currentIndex + 1)
 </script>
 
 <template>
-  <aside class="w-80 bg-neutral-950 border-l border-neutral-800 h-full flex flex-col text-white flex-shrink-0">
+  <aside class="fixed inset-0 z-40 sm:z-auto sm:static w-full sm:w-80 bg-neutral-950 sm:border-l border-neutral-800 h-full flex flex-col text-white flex-shrink-0">
     <div class="flex items-center justify-between p-4 border-b border-neutral-800">
       <h2 class="font-semibold">Queue</h2>
       <button @click="player.toggleQueuePanel" class="text-neutral-400 hover:text-white transition p-1">
