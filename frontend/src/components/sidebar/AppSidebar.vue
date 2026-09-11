@@ -62,7 +62,7 @@ defineExpose({ loadPlaylists })
         to="/"
         @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
-        active-class="text-white bg-neutral-800"
+        active-class="text-green-500 bg-neutral-800"
       >
         <Home :size="18" />
         Home
@@ -71,7 +71,7 @@ defineExpose({ loadPlaylists })
         to="/search"
         @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
-        active-class="text-white bg-neutral-800"
+        active-class="text-green-500 bg-neutral-800"
       >
         <Search :size="18" />
         Search
@@ -80,7 +80,7 @@ defineExpose({ loadPlaylists })
         to="/liked"
         @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
-        active-class="text-white bg-neutral-800"
+        active-class="text-green-500 bg-neutral-800"
       >
         <Heart :size="18" />
         Liked Songs
@@ -89,7 +89,7 @@ defineExpose({ loadPlaylists })
         to="/upload"
         @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
-        active-class="text-white bg-neutral-800"
+        active-class="text-green-500 bg-neutral-800"
       >
         <Upload :size="18" />
         Upload
@@ -99,7 +99,7 @@ defineExpose({ loadPlaylists })
         to="/admin/users"
         @click="handleNavigate"
         class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium"
-        active-class="text-white bg-neutral-800"
+        active-class="text-green-500 bg-neutral-800"
       >
         <Users :size="18" />
         Users
@@ -126,8 +126,8 @@ defineExpose({ loadPlaylists })
           <RouterLink
             :to="`/playlists/${playlist.id}`"
             @click="handleNavigate"
-            class="block py-1.5 text-sm text-neutral-400 hover:text-white transition truncate"
-            active-class="text-white font-medium"
+            class="block py-1.5 px-2 -mx-2 rounded text-sm text-neutral-400 hover:text-white hover:bg-neutral-800 transition truncate"
+            active-class="text-green-500 font-medium bg-neutral-800"
           >
             {{ playlist.name }}
           </RouterLink>
