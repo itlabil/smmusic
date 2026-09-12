@@ -83,5 +83,12 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 		}
 	}
 
+	// Serve frontend production build (Vue SPA)
+	r.Static("/assets", "./frontend-dist/assets")
+	r.StaticFile("/favicon.ico", "./frontend-dist/favicon.ico")
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./frontend-dist/index.html")
+	})
+
 	return r
 }
