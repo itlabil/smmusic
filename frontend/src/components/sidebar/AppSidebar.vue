@@ -5,11 +5,13 @@ import { Home, Search, Heart, Upload, Users, Plus, Library, X, LogOut } from 'lu
 import { listPlaylists, createPlaylist } from '@/services/playlists'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useModalStore } from '@/stores/modal'
 
 const playlists = ref([])
 const router = useRouter()
 const authStore = useAuthStore()
 const ui = useUiStore()
+const modal = useModalStore()
 
 async function loadPlaylists() {
   const res = await listPlaylists()
@@ -19,10 +21,10 @@ async function loadPlaylists() {
 onMounted(loadPlaylists)
 
 async function handleCreatePlaylist() {
-  const name = prompt('Playlist name:')
-  if (!name || !name.trim()) return
+  const name = await modal.prompt({ title: 'New Playlist', placeholder: 'Playlist name' })
+  if (!name) return
 
-  const res = await createPlaylist(name.trim())
+  const res = await createPlaylist(name)
   playlists.value.unshift(res.data.playlist)
   ui.closeMobileMenu()
   router.push(`/playlists/${res.data.playlist.id}`)

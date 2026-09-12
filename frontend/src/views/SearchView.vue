@@ -8,12 +8,14 @@ import SongListHeader from '@/components/song-card/SongListHeader.vue'
 import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useModalStore } from '@/stores/modal'
 
 const query = ref('')
 const songs = ref([])
 const isSearching = ref(false)
 const player = usePlayerStore()
 const authStore = useAuthStore()
+const modal = useModalStore()
 const showAddToPlaylistModal = ref(false)
 const showEditModal = ref(false)
 const selectedSongId = ref(null)
@@ -68,7 +70,12 @@ function canDeleteSong(song) {
 }
 
 async function handleDelete(song) {
-  if (!confirm(`Delete "${song.title}"? This cannot be undone.`)) return
+  const ok = await modal.confirm({
+    title: 'Delete Song',
+    message: `Delete "${song.title}"? This cannot be undone.`,
+    danger: true,
+  })
+  if (!ok) return
   await deleteSong(song.id)
   songs.value = songs.value.filter((s) => s.id !== song.id)
 }

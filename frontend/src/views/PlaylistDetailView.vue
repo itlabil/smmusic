@@ -12,6 +12,7 @@ import {
 } from '@/services/playlists'
 import { likeSong, unlikeSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
+import { useModalStore } from '@/stores/modal'
 import { formatTotalDuration } from '@/utils/format'
 import SongRow from '@/components/song-card/SongRow.vue'
 import SongListHeader from '@/components/song-card/SongListHeader.vue'
@@ -20,6 +21,7 @@ import EditSongModal from '@/components/song-card/EditSongModal.vue'
 const route = useRoute()
 const router = useRouter()
 const player = usePlayerStore()
+const modal = useModalStore()
 
 const playlistId = ref(route.params.id)
 const songs = ref([])
@@ -72,14 +74,23 @@ async function handleRemove(songId) {
 }
 
 async function handleRename() {
-  const name = prompt('New playlist name:', detail.value?.name)
-  if (!name || !name.trim()) return
-  await renamePlaylist(playlistId.value, name.trim())
+  const name = await modal.prompt({
+    title: 'Rename Playlist',
+    defaultValue: detail.value?.name,
+    placeholder: 'Playlist name',
+  })
+  if (!name) return
+  await renamePlaylist(playlistId.value, name)
   await loadDetail()
 }
 
 async function handleDelete() {
-  if (!confirm('Delete this playlist? This cannot be undone.')) return
+  const ok = await modal.confirm({
+    title: 'Delete Playlist',
+    message: `Delete "${detail.value?.name}"? This cannot be undone.`,
+    danger: true,
+  })
+  if (!ok) return
   await deletePlaylist(playlistId.value)
   router.push('/')
 }

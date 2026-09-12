@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { listSongs, listRecentlyPlayed, likeSong, unlikeSong, deleteSong } from '@/services/songs'
 import { useAuthStore } from '@/stores/auth'
+import { useModalStore } from '@/stores/modal'
 import { usePlayerStore } from '@/stores/player'
 import SongRow from '@/components/song-card/SongRow.vue'
 import SongListHeader from '@/components/song-card/SongListHeader.vue'
@@ -12,6 +13,7 @@ const songs = ref([])
 const recentSongs = ref([])
 const player = usePlayerStore()
 const authStore = useAuthStore()
+const modal = useModalStore()
 const showAddToPlaylistModal = ref(false)
 const showEditModal = ref(false)
 const selectedSongId = ref(null)
@@ -76,7 +78,12 @@ function canDeleteSong(song) {
 }
 
 async function handleDelete(song) {
-  if (!confirm(`Delete "${song.title}"? This cannot be undone.`)) return
+  const ok = await modal.confirm({
+    title: 'Delete Song',
+    message: `Delete "${song.title}"? This cannot be undone.`,
+    danger: true,
+  })
+  if (!ok) return
   await deleteSong(song.id)
   await loadSongs()
   await loadRecentSongs()

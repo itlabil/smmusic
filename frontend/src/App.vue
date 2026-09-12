@@ -7,6 +7,7 @@ import MobileTopBar from '@/components/sidebar/MobileTopBar.vue'
 import NowPlayingBar from '@/components/player/NowPlayingBar.vue'
 import QueuePanel from '@/components/player/QueuePanel.vue'
 import MobileFullPlayer from '@/components/player/MobileFullPlayer.vue'
+import GlobalModal from '@/components/ui/GlobalModal.vue'
 import { usePlayerStore } from '@/stores/player'
 
 const route = useRoute()
@@ -31,5 +32,6 @@ const player = usePlayerStore()
     <NowPlayingBar />
     <MobileNav />
     <MobileFullPlayer v-if="player.isFullScreenOpen" />
+    <GlobalModal />
   </div>
 </template>
