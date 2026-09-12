@@ -25,25 +25,72 @@ func (h *SongHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	// Limit upload size to 200MB (generous for FLAC files)
 	const maxUploadSize = 200 << 20
 	if fileHeader.Size > maxUploadSize {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large (max 200MB)"})
 		return
 	}
 
-	song, err := h.songService.Upload(fileHeader, userID)
+	result, err := h.songService.Upload(fileHeader, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"song": song})
+	if result.Duplicate != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"duplicate":     true,
+			"existing_song": result.Duplicate.ExistingSong,
+			"can_merge":     result.Duplicate.CanMerge,
+			"upload_token":  result.Duplicate.UploadToken,
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"song": result.Song})
+}
+
+type confirmUploadRequest struct {
+	UploadToken string `json:"upload_token" binding:"required"`
+	Action      string `json:"action" binding:"required,oneof=merge new"`
+}
+
+func (h *SongHandler) ConfirmUpload(c *gin.Context) {
+	var req confirmUploadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "upload_token and action ('merge' or 'new') are required"})
+		return
+	}
+
+	song, err := h.songService.ConfirmUpload(req.UploadToken, req.Action)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"song": song})
 }
 
 func (h *SongHandler) List(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	songs, err := h.songService.List(userID, 50, 0) // basic pagination default, refined later
+	songs, err := h.songService.List(userID, 50, 0)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"songs": songs})
+}
+
+func (h *SongHandler) Search(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	query := c.Query("q")
+
+	if query == "" {
+		c.JSON(http.StatusOK, gin.H{"songs": []interface{}{}})
+		return
+	}
+
+	songs, err := h.songService.Search(userID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -58,7 +105,7 @@ func (h *SongHandler) Stream(c *gin.Context) {
 		return
 	}
 
-	quality := c.DefaultQuery("quality", "standard") // "standard" | "high"
+	quality := c.DefaultQuery("quality", "standard")
 
 	filePath, contentType, err := h.songService.GetStreamPath(songID, quality)
 	if err != nil {
@@ -68,9 +115,7 @@ func (h *SongHandler) Stream(c *gin.Context) {
 
 	c.Header("Content-Type", contentType)
 	c.Header("Accept-Ranges", "bytes")
-	// http.ServeFile handles Range requests automatically (seek/skip support)
 	c.File(filePath)
-	_ = contentType
 }
 
 func (h *SongHandler) Cover(c *gin.Context) {
@@ -146,19 +191,21 @@ func (h *SongHandler) UploadCover(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "cover uploaded"})
 }
 
-func (h *SongHandler) Search(c *gin.Context) {
+func (h *SongHandler) Delete(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	query := c.Query("q")
+	role := c.GetString("role")
+	isAdmin := role == "admin"
 
-	if query == "" {
-		c.JSON(http.StatusOK, gin.H{"songs": []interface{}{}})
-		return
-	}
-
-	songs, err := h.songService.Search(userID, query)
+	songID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid song id"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"songs": songs})
+
+	if err := h.songService.Delete(songID, userID, isAdmin); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "song deleted"})
 }

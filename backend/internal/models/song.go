@@ -14,7 +14,7 @@ type Song struct {
 	Mp3Path          *string   `json:"mp3_path,omitempty"`
 	CoverPath        *string   `json:"cover_path,omitempty"`
 	TranscodeStatus  string    `json:"transcode_status"`
-	UploadedBy       *int      `json:"uploaded_by,omitempty"`
+	UploadedBy       *int       `json:"uploaded_by"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	IsLiked          bool      `json:"is_liked"`

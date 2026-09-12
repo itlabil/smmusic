@@ -90,3 +90,8 @@ func (r *UserRepository) List() ([]models.User, error) {
 	}
 	return users, nil
 }
+
+func (r *UserRepository) UpdateRole(userID int, role string) error {
+	_, err := r.db.Exec(`UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`, role, userID)
+	return err
+}

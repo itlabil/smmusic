@@ -1,12 +1,15 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/itlabil/smmusic/backend/internal/config"
 	"github.com/itlabil/smmusic/backend/internal/models"
@@ -16,34 +19,78 @@ import (
 	"github.com/itlabil/smmusic/backend/pkg/tagreader"
 )
 
+// pendingUpload holds everything needed to finish processing an upload after
+// the user resolves a duplicate-song prompt (merge into existing vs. new song).
+type pendingUpload struct {
+	TempPath        string
+	Ext             string
+	SourceFormat    string
+	Title           string
+	Artist          string
+	Album           *string
+	Genre           *string
+	CoverData       []byte
+	CoverExt        string
+	DurationSeconds int
+	UploadedBy      int
+	ExistingSongID  *int
+}
+
+type DuplicateInfo struct {
+	ExistingSong *models.Song `json:"existing_song"`
+	CanMerge     bool         `json:"can_merge"`
+	UploadToken  string       `json:"upload_token"`
+}
+
+type UploadResult struct {
+	Song      *models.Song   `json:"song,omitempty"`
+	Duplicate *DuplicateInfo `json:"duplicate,omitempty"`
+}
+
 type SongService struct {
 	songRepo         *repository.SongRepository
 	cfg              *config.Config
 	transcodeService *TranscodeService
+
+	mu             sync.Mutex
+	pendingUploads map[string]*pendingUpload
 }
 
 func NewSongService(songRepo *repository.SongRepository, cfg *config.Config, transcodeService *TranscodeService) *SongService {
-	return &SongService{songRepo: songRepo, cfg: cfg, transcodeService: transcodeService}
+	return &SongService{
+		songRepo:         songRepo,
+		cfg:              cfg,
+		transcodeService: transcodeService,
+		pendingUploads:   make(map[string]*pendingUpload),
+	}
 }
 
-// Upload saves the uploaded file to storage/audio/{artist_slug}/{song_id}.{ext},
-// extracts metadata from tags, and inserts the songs row. If the source is FLAC,
-// transcode_status is left "pending" for the background job (Step 9) to pick up.
-func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (*models.Song, error) {
-	ext := strings.ToLower(filepath.Ext(fileHeader.Filename)) // ".flac" or ".mp3"
+func generateUploadToken() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// Upload processes a newly uploaded audio file. If a song with the same
+// title+artist already exists, it returns a Duplicate result instead of
+// creating a new song, so the caller can decide (via ConfirmUpload) whether
+// to merge the file into the existing song or upload it as a new song.
+func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (*UploadResult, error) {
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	if ext != ".flac" && ext != ".mp3" {
 		return nil, fmt.Errorf("unsupported file type: %s (only .flac and .mp3 allowed)", ext)
 	}
 
-	// Save to a temp path first so tagreader can read it
-	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("upload-%d%s", uploadedBy, ext))
+	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("upload-%d-%d%s", uploadedBy, os.Getpid(), ext))
 	if err := saveMultipartFile(fileHeader, tempPath); err != nil {
 		return nil, err
 	}
-	defer os.Remove(tempPath)
 
 	meta, err := tagreader.Read(tempPath)
 	if err != nil {
+		os.Remove(tempPath)
 		return nil, fmt.Errorf("failed to read audio metadata: %w", err)
 	}
 	if meta.Title == "" {
@@ -60,61 +107,142 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 
 	durationSeconds, err := ffmpeg.GetDuration(tempPath)
 	if err != nil {
-		durationSeconds = 0 // fallback gracefully; don't fail the whole upload just for missing duration
+		durationSeconds = 0
 	}
 
-	song := &models.Song{
-		Title:           meta.Title,
-		Artist:          meta.Artist,
-		DurationSeconds: &durationSeconds,
-		SourceFormat:    sourceFormat,
-		TranscodeStatus: "done", // default; overridden below if flac
-		UploadedBy:      &uploadedBy,
-	}
+	var albumPtr, genrePtr *string
 	if meta.Album != "" {
-		song.Album = &meta.Album
+		albumPtr = &meta.Album
 	}
 	if meta.Genre != "" {
-		song.Genre = &meta.Genre
+		genrePtr = &meta.Genre
 	}
 
-	if sourceFormat == "flac" {
+	pending := &pendingUpload{
+		TempPath:        tempPath,
+		Ext:             ext,
+		SourceFormat:    sourceFormat,
+		Title:           meta.Title,
+		Artist:          meta.Artist,
+		Album:           albumPtr,
+		Genre:           genrePtr,
+		CoverData:       meta.CoverData,
+		CoverExt:        meta.CoverExt,
+		DurationSeconds: durationSeconds,
+		UploadedBy:      uploadedBy,
+	}
+
+	existing, err := s.songRepo.FindDuplicate(meta.Title, meta.Artist)
+	if err != nil {
+		os.Remove(tempPath)
+		return nil, err
+	}
+
+	if existing != nil {
+		canMerge := (sourceFormat == "flac" && existing.FlacPath == nil) ||
+			(sourceFormat == "mp3" && existing.Mp3Path == nil)
+
+		pending.ExistingSongID = &existing.ID
+
+		token, err := generateUploadToken()
+		if err != nil {
+			os.Remove(tempPath)
+			return nil, err
+		}
+
+		s.mu.Lock()
+		s.pendingUploads[token] = pending
+		s.mu.Unlock()
+
+		return &UploadResult{
+			Duplicate: &DuplicateInfo{
+				ExistingSong: existing,
+				CanMerge:     canMerge,
+				UploadToken:  token,
+			},
+		}, nil
+	}
+
+	song, err := s.finalizeNewSong(pending)
+	if err != nil {
+		return nil, err
+	}
+	return &UploadResult{Song: song}, nil
+}
+
+// ConfirmUpload is called after the user resolves a duplicate-song prompt.
+// action "new" creates a separate song as usual; action "merge" attaches the
+// uploaded file to the existing matching song instead.
+func (s *SongService) ConfirmUpload(token, action string) (*models.Song, error) {
+	s.mu.Lock()
+	pending, ok := s.pendingUploads[token]
+	if ok {
+		delete(s.pendingUploads, token)
+	}
+	s.mu.Unlock()
+
+	if !ok {
+		return nil, fmt.Errorf("upload token not found or expired")
+	}
+
+	if action == "merge" {
+		if pending.ExistingSongID == nil {
+			return nil, fmt.Errorf("no existing song to merge into")
+		}
+		return s.mergeIntoExisting(pending, *pending.ExistingSongID)
+	}
+
+	return s.finalizeNewSong(pending)
+}
+
+func (s *SongService) finalizeNewSong(pending *pendingUpload) (*models.Song, error) {
+	defer os.Remove(pending.TempPath)
+
+	song := &models.Song{
+		Title:           pending.Title,
+		Artist:          pending.Artist,
+		Album:           pending.Album,
+		Genre:           pending.Genre,
+		DurationSeconds: &pending.DurationSeconds,
+		SourceFormat:    pending.SourceFormat,
+		TranscodeStatus: "done",
+		UploadedBy:      &pending.UploadedBy,
+	}
+	if pending.SourceFormat == "flac" {
 		song.TranscodeStatus = "pending"
 	}
 
-	// Insert first to get the song ID (used as filename)
 	if err := s.songRepo.Create(song); err != nil {
 		return nil, err
 	}
 
-		artistFolder := slug.Generate(song.Artist)
+	artistFolder := slug.Generate(song.Artist)
 	destDir := filepath.Join(s.cfg.StorageAudioPath, artistFolder)
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return nil, err
 	}
 
-	destPath := filepath.Join(destDir, fmt.Sprintf("%d%s", song.ID, ext))
-	if err := copyFile(tempPath, destPath); err != nil {
+	destPath := filepath.Join(destDir, fmt.Sprintf("%d%s", song.ID, pending.Ext))
+	if err := copyFile(pending.TempPath, destPath); err != nil {
 		return nil, err
 	}
 
-	if sourceFormat == "flac" {
+	if pending.SourceFormat == "flac" {
 		song.FlacPath = &destPath
 	} else {
 		song.Mp3Path = &destPath
 	}
-
 	if err := s.songRepo.UpdatePaths(song.ID, song.FlacPath, song.Mp3Path); err != nil {
 		return nil, err
 	}
 
-	if len(meta.CoverData) > 0 {
+	if len(pending.CoverData) > 0 {
 		coverDir := filepath.Join(s.cfg.StorageCoverPath, artistFolder)
 		if err := os.MkdirAll(coverDir, 0755); err != nil {
 			return nil, err
 		}
-		coverPath := filepath.Join(coverDir, fmt.Sprintf("%d.%s", song.ID, meta.CoverExt))
-		if err := os.WriteFile(coverPath, meta.CoverData, 0644); err != nil {
+		coverPath := filepath.Join(coverDir, fmt.Sprintf("%d.%s", song.ID, pending.CoverExt))
+		if err := os.WriteFile(coverPath, pending.CoverData, 0644); err != nil {
 			return nil, err
 		}
 		song.CoverPath = &coverPath
@@ -123,11 +251,52 @@ func (s *SongService) Upload(fileHeader *multipart.FileHeader, uploadedBy int) (
 		}
 	}
 
-	if sourceFormat == "flac" {
+	if pending.SourceFormat == "flac" {
 		s.transcodeService.Enqueue(song.ID, destPath)
 	}
 
 	return song, nil
+}
+
+// mergeIntoExisting attaches the uploaded file's format to an already-existing
+// song instead of creating a duplicate row.
+func (s *SongService) mergeIntoExisting(pending *pendingUpload, existingID int) (*models.Song, error) {
+	defer os.Remove(pending.TempPath)
+
+	existing, err := s.songRepo.FindByID(existingID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("existing song not found")
+	}
+
+	artistFolder := slug.Generate(existing.Artist)
+	destDir := filepath.Join(s.cfg.StorageAudioPath, artistFolder)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, err
+	}
+
+	destPath := filepath.Join(destDir, fmt.Sprintf("%d%s", existing.ID, pending.Ext))
+	if err := copyFile(pending.TempPath, destPath); err != nil {
+		return nil, err
+	}
+
+	if err := s.songRepo.UpdateSingleFormatPath(existing.ID, pending.SourceFormat, destPath); err != nil {
+		return nil, err
+	}
+
+	if existing.CoverPath == nil && len(pending.CoverData) > 0 {
+		coverDir := filepath.Join(s.cfg.StorageCoverPath, artistFolder)
+		if err := os.MkdirAll(coverDir, 0755); err == nil {
+			coverPath := filepath.Join(coverDir, fmt.Sprintf("%d.%s", existing.ID, pending.CoverExt))
+			if err := os.WriteFile(coverPath, pending.CoverData, 0644); err == nil {
+				_ = s.songRepo.UpdateCoverPath(existing.ID, coverPath)
+			}
+		}
+	}
+
+	return s.songRepo.FindByID(existing.ID)
 }
 
 func saveMultipartFile(fh *multipart.FileHeader, dest string) error {
@@ -175,8 +344,10 @@ func (s *SongService) List(userID, limit, offset int) ([]models.Song, error) {
 	return songs, nil
 }
 
-// GetStreamPath resolves which file to serve based on requested quality
-// and actual availability. Falls back to MP3 if FLAC isn't available.
+func (s *SongService) Search(userID int, query string) ([]models.Song, error) {
+	return s.songRepo.Search(userID, query, 30)
+}
+
 func (s *SongService) GetStreamPath(songID int, quality string) (filePath string, contentType string, err error) {
 	song, err := s.songRepo.FindByID(songID)
 	if err != nil {
@@ -217,7 +388,6 @@ func (s *SongService) UpdateMetadata(songID, requestingUserID int, isAdmin bool,
 		return fmt.Errorf("song not found")
 	}
 
-	// Only admin or the original uploader can edit metadata
 	if !isAdmin && (song.UploadedBy == nil || *song.UploadedBy != requestingUserID) {
 		return fmt.Errorf("you do not have permission to edit this song")
 	}
@@ -260,6 +430,32 @@ func (s *SongService) UploadCover(songID, requestingUserID int, isAdmin bool, fi
 	return s.songRepo.UpdateCoverPath(songID, coverPath)
 }
 
-func (s *SongService) Search(userID int, query string) ([]models.Song, error) {
-	return s.songRepo.Search(userID, query, 30)
+func (s *SongService) Delete(songID, requestingUserID int, isAdmin bool) error {
+	song, err := s.songRepo.FindByID(songID)
+	if err != nil {
+		return err
+	}
+	if song == nil {
+		return fmt.Errorf("song not found")
+	}
+
+	if !isAdmin && (song.UploadedBy == nil || *song.UploadedBy != requestingUserID) {
+		return fmt.Errorf("you do not have permission to delete this song")
+	}
+
+	if err := s.songRepo.Delete(songID); err != nil {
+		return err
+	}
+
+	if song.FlacPath != nil {
+		_ = os.Remove(*song.FlacPath)
+	}
+	if song.Mp3Path != nil {
+		_ = os.Remove(*song.Mp3Path)
+	}
+	if song.CoverPath != nil {
+		_ = os.Remove(*song.CoverPath)
+	}
+
+	return nil
 }

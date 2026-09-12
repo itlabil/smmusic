@@ -50,14 +50,46 @@ func (r *SongRepository) FindByID(id int) (*models.Song, error) {
 	return s, nil
 }
 
-// List returns songs ordered by newest first (basic library view)
-func (r *SongRepository) List(limit, offset int) ([]models.Song, error) {
+// FindDuplicate returns an existing song matching the same title+artist
+// (case-insensitive), used to detect likely duplicate uploads.
+func (r *SongRepository) FindDuplicate(title, artist string) (*models.Song, error) {
 	query := `
 		SELECT id, title, artist, album, genre, duration_seconds, source_format,
 		       flac_path, mp3_path, cover_path, transcode_status, uploaded_by, created_at, updated_at
-		FROM songs ORDER BY created_at DESC LIMIT $1 OFFSET $2
+		FROM songs
+		WHERE LOWER(title) = LOWER($1) AND LOWER(artist) = LOWER($2)
+		LIMIT 1
 	`
-	rows, err := r.db.Query(query, limit, offset)
+	s := &models.Song{}
+	err := r.db.QueryRow(query, title, artist).Scan(
+		&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
+		&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
+		&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]models.Song, error) {
+	query := `
+		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
+		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
+		       (l.user_id IS NOT NULL) AS is_liked,
+		       EXISTS (
+		           SELECT 1 FROM playlist_songs ps
+		           INNER JOIN playlists p ON p.id = ps.playlist_id
+		           WHERE ps.song_id = s.id AND p.user_id = $1
+		       ) AS is_in_playlist
+		FROM songs s
+		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $1
+		ORDER BY s.created_at DESC LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.Query(query, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +101,7 @@ func (r *SongRepository) List(limit, offset int) ([]models.Song, error) {
 		if err := rows.Scan(
 			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
 			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt,
+			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked, &s.IsInPlaylist,
 		); err != nil {
 			return nil, err
 		}
@@ -78,7 +110,6 @@ func (r *SongRepository) List(limit, offset int) ([]models.Song, error) {
 	return songs, nil
 }
 
-// Search using Postgres full-text search on search_vector
 func (r *SongRepository) Search(userID int, query string, limit int) ([]models.Song, error) {
 	sqlQuery := `
 		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
@@ -116,7 +147,6 @@ func (r *SongRepository) Search(userID int, query string, limit int) ([]models.S
 	return songs, nil
 }
 
-// UpdateTranscodeStatus is called by the background transcode job
 func (r *SongRepository) UpdateTranscodeStatus(id int, status string, mp3Path *string) error {
 	query := `UPDATE songs SET transcode_status = $1, mp3_path = COALESCE($2, mp3_path), updated_at = NOW() WHERE id = $3`
 	_, err := r.db.Exec(query, status, mp3Path, id)
@@ -129,48 +159,20 @@ func (r *SongRepository) UpdatePaths(id int, flacPath, mp3Path *string) error {
 	return err
 }
 
-func (r *SongRepository) Delete(id int) error {
-	_, err := r.db.Exec(`DELETE FROM songs WHERE id = $1`, id)
+// UpdateSingleFormatPath sets only flac_path or mp3_path, leaving the other
+// column untouched. Used when merging a newly uploaded file into an existing
+// duplicate song.
+func (r *SongRepository) UpdateSingleFormatPath(id int, format, path string) error {
+	var query string
+	if format == "flac" {
+		query = `UPDATE songs SET flac_path = $1, updated_at = NOW() WHERE id = $2`
+	} else {
+		query = `UPDATE songs SET mp3_path = $1, updated_at = NOW() WHERE id = $2`
+	}
+	_, err := r.db.Exec(query, path, id)
 	return err
 }
 
-// ListWithLikedStatus returns songs with an is_liked flag for the given user
-func (r *SongRepository) ListWithLikedStatus(userID, limit, offset int) ([]models.Song, error) {
-	query := `
-		SELECT s.id, s.title, s.artist, s.album, s.genre, s.duration_seconds, s.source_format,
-		       s.flac_path, s.mp3_path, s.cover_path, s.transcode_status, s.uploaded_by, s.created_at, s.updated_at,
-		       (l.user_id IS NOT NULL) AS is_liked,
-		       EXISTS (
-		           SELECT 1 FROM playlist_songs ps
-		           INNER JOIN playlists p ON p.id = ps.playlist_id
-		           WHERE ps.song_id = s.id AND p.user_id = $1
-		       ) AS is_in_playlist
-		FROM songs s
-		LEFT JOIN liked_songs l ON l.song_id = s.id AND l.user_id = $1
-		ORDER BY s.created_at DESC LIMIT $2 OFFSET $3
-	`
-	rows, err := r.db.Query(query, userID, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var songs []models.Song
-	for rows.Next() {
-		var s models.Song
-		if err := rows.Scan(
-			&s.ID, &s.Title, &s.Artist, &s.Album, &s.Genre, &s.DurationSeconds,
-			&s.SourceFormat, &s.FlacPath, &s.Mp3Path, &s.CoverPath,
-			&s.TranscodeStatus, &s.UploadedBy, &s.CreatedAt, &s.UpdatedAt, &s.IsLiked, &s.IsInPlaylist,
-		); err != nil {
-			return nil, err
-		}
-		songs = append(songs, s)
-	}
-	return songs, nil
-}
-
-// Search using Postgres full-text search
 func (r *SongRepository) UpdateCoverPath(id int, coverPath string) error {
 	query := `UPDATE songs SET cover_path = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.Exec(query, coverPath, id)
@@ -184,5 +186,10 @@ func (r *SongRepository) UpdateMetadata(id int, title, artist string, album, gen
 		WHERE id = $5
 	`
 	_, err := r.db.Exec(query, title, artist, album, genre, id)
+	return err
+}
+
+func (r *SongRepository) Delete(id int) error {
+	_, err := r.db.Exec(`DELETE FROM songs WHERE id = $1`, id)
 	return err
 }

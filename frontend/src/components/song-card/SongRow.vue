@@ -1,17 +1,23 @@
 <script setup>
-import { ref } from 'vue'
-import { Heart, ListPlus, X, Music, Pencil, GripVertical, MoreVertical } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Heart, ListPlus, X, Music, Pencil, GripVertical, MoreVertical, Trash2 } from 'lucide-vue-next'
 import { getCoverUrl } from '@/services/songs'
 import { formatDate, formatDuration } from '@/utils/format'
+import { usePlayerStore } from '@/stores/player'
+import PlayingIndicator from '@/components/song-card/PlayingIndicator.vue'
 
-defineProps({
+const props = defineProps({
   song: { type: Object, required: true },
   index: { type: Number, default: null },
   showRemove: { type: Boolean, default: false },
   showAddToPlaylist: { type: Boolean, default: true },
   draggable: { type: Boolean, default: false },
+  canDelete: { type: Boolean, default: false },
 })
-const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'edit'])
+const emit = defineEmits(['play', 'toggle-like', 'add-to-playlist', 'remove', 'edit', 'delete'])
+
+const player = usePlayerStore()
+const isCurrentSong = computed(() => player.currentSong?.id === props.song.id)
 
 const showMobileMenu = ref(false)
 
@@ -27,15 +33,23 @@ function handleMobileAction(action) {
       <div v-if="draggable" class="text-neutral-600 group-hover:text-neutral-400 cursor-grab active:cursor-grabbing flex-shrink-0">
         <GripVertical :size="16" />
       </div>
-      <span v-if="index !== null" class="hidden lg:block text-neutral-400 text-sm w-4 text-right flex-shrink-0">
+      <span v-if="index !== null && !isCurrentSong" class="hidden lg:flex text-neutral-400 text-sm w-4 justify-end flex-shrink-0">
         {{ index + 1 }}
       </span>
-      <div @click="emit('play')" class="w-10 h-10 bg-neutral-700 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+      <span v-else-if="isCurrentSong" class="hidden lg:flex w-4 justify-end flex-shrink-0">
+        <PlayingIndicator />
+      </span>
+      <div @click="emit('play')" class="w-10 h-10 bg-neutral-700 rounded flex-shrink-0 overflow-hidden flex items-center justify-center relative">
         <img v-if="getCoverUrl(song)" :src="getCoverUrl(song)" class="w-full h-full object-cover" alt="" />
         <Music v-else :size="16" class="text-neutral-500" />
+        <div v-if="isCurrentSong" class="lg:hidden absolute inset-0 bg-black/50 flex items-center justify-center">
+          <PlayingIndicator />
+        </div>
       </div>
       <div @click="emit('play')" class="min-w-0">
-        <p class="text-white text-sm font-medium truncate">{{ song.title }}</p>
+        <p :class="['text-sm font-medium truncate', isCurrentSong ? 'text-green-500' : 'text-white']">
+          {{ song.title }}
+        </p>
         <p class="text-neutral-400 text-xs truncate">{{ song.artist }}</p>
       </div>
     </div>
@@ -95,14 +109,25 @@ function handleMobileAction(action) {
         </button>
       </div>
 
-      <button
-        v-if="showRemove"
-        @click="emit('remove')"
-        class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-red-400"
-        title="Remove from playlist"
-      >
-        <X :size="18" />
-      </button>
+      <div v-if="canDelete" class="hidden lg:block">
+        <button
+          @click="emit('delete')"
+          class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-red-400"
+          title="Delete song"
+        >
+          <Trash2 :size="16" />
+        </button>
+      </div>
+
+      <div v-if="showRemove" class="hidden lg:block">
+        <button
+          @click="emit('remove')"
+          class="p-1.5 rounded-full transition hover:bg-neutral-700 text-neutral-400 hover:text-red-400"
+          title="Remove from playlist"
+        >
+          <X :size="18" />
+        </button>
+      </div>
 
       <div class="lg:hidden">
         <button
@@ -134,6 +159,22 @@ function handleMobileAction(action) {
           >
             <Pencil :size="16" />
             Edit Song
+          </button>
+          <button
+            v-if="canDelete"
+            @click="handleMobileAction('delete')"
+            class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left text-red-400 hover:bg-neutral-700 transition"
+          >
+            <Trash2 :size="16" />
+            Delete Song
+          </button>
+          <button
+            v-if="showRemove"
+            @click="handleMobileAction('remove')"
+            class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left text-red-400 hover:bg-neutral-700 transition"
+          >
+            <X :size="16" />
+            Remove
           </button>
         </div>
       </div>

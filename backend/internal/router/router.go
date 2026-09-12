@@ -45,12 +45,14 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 			authed.POST("/auth/change-password", authHandler.ChangePassword)
 
 			authed.POST("/songs/upload", songHandler.Upload)
+			authed.POST("/songs/upload/confirm", songHandler.ConfirmUpload)
 			authed.GET("/songs", songHandler.List)
 			authed.GET("/songs/search", songHandler.Search)
 			authed.GET("/songs/:id/stream", songHandler.Stream)
 			authed.GET("/songs/:id/cover", songHandler.Cover)
 			authed.PATCH("/songs/:id", songHandler.Update)
 			authed.POST("/songs/:id/cover", songHandler.UploadCover)
+			authed.DELETE("/songs/:id", songHandler.Delete)
 
 			authed.POST("/songs/:id/like", interactionHandler.Like)
 			authed.DELETE("/songs/:id/like", interactionHandler.Unlike)
@@ -76,6 +78,7 @@ func Setup(db *sql.DB, cfg *config.Config) *gin.Engine {
 			{
 				admin.POST("/users", authHandler.CreateUser)
 				admin.GET("/users", authHandler.ListUsers)
+				admin.PATCH("/users/:id", authHandler.AdminUpdateUser)
 			}
 		}
 	}

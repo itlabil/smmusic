@@ -13,6 +13,10 @@ export function uploadSong(file, onUploadProgress) {
   })
 }
 
+export function confirmUpload(uploadToken, action) {
+  return api.post('/songs/upload/confirm', { upload_token: uploadToken, action })
+}
+
 export function getStreamUrl(songId, quality = 'standard') {
   const token = localStorage.getItem('token')
   return `/api/songs/${songId}/stream?quality=${quality}&token=${token}`
@@ -62,4 +66,8 @@ export function searchSongs(query) {
 
 export function getLikedSongsSummary() {
   return api.get('/songs/liked/summary')
+}
+
+export function deleteSong(songId) {
+  return api.delete(`/songs/${songId}`)
 }

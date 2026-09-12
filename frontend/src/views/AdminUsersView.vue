@@ -1,6 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { Pencil } from 'lucide-vue-next'
 import { listUsers, createUser } from '@/services/admin'
+import EditUserModal from '@/components/admin/EditUserModal.vue'
 
 const users = ref([])
 const newUsername = ref('')
@@ -13,6 +15,14 @@ const isCreating = ref(false)
 async function loadUsers() {
   const res = await listUsers()
   users.value = res.data.users || []
+}
+
+const showEditModal = ref(false)
+const selectedUser = ref(null)
+
+function openEdit(user) {
+  selectedUser.value = user
+  showEditModal.value = true
 }
 
 onMounted(loadUsers)
@@ -99,6 +109,7 @@ async function handleCreate() {
             <th class="pb-2">Username</th>
             <th class="pb-2">Role</th>
             <th class="pb-2">Created</th>
+            <th class="pb-2"></th>
           </tr>
         </thead>
         <tbody>
@@ -117,9 +128,25 @@ async function handleCreate() {
             <td class="py-2 text-neutral-400 text-sm">
               {{ new Date(user.created_at).toLocaleDateString() }}
             </td>
+            <td class="py-2 text-right">
+              <button
+                @click="openEdit(user)"
+                class="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
+                title="Edit user"
+              >
+                <Pencil :size="16" />
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <EditUserModal
+      v-if="showEditModal"
+      :user="selectedUser"
+      @close="showEditModal = false"
+      @updated="loadUsers"
+    />
   </div>
 </template>

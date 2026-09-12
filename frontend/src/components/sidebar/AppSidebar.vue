@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Home, Search, Heart, Upload, Users, Plus, Library, X } from 'lucide-vue-next'
+import { Home, Search, Heart, Upload, Users, Plus, Library, X, LogOut } from 'lucide-vue-next'
 import { listPlaylists, createPlaylist } from '@/services/playlists'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -30,6 +30,12 @@ async function handleCreatePlaylist() {
 
 function handleNavigate() {
   ui.closeMobileMenu()
+}
+
+function handleLogout() {
+  authStore.logout()
+  ui.closeMobileMenu()
+  router.push('/login')
 }
 
 defineExpose({ loadPlaylists })
@@ -133,6 +139,16 @@ defineExpose({ loadPlaylists })
           </RouterLink>
         </li>
       </ul>
+    </div>
+
+    <div class="p-3 border-t border-neutral-800">
+      <button
+        @click="handleLogout"
+        class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-800 hover:text-white transition text-sm font-medium text-neutral-400"
+      >
+        <LogOut :size="18" />
+        Logout
+      </button>
     </div>
   </aside>
 </template>

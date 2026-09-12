@@ -1,25 +1,54 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getStreamUrl, recordPlay } from '@/services/songs'
 
+const STORAGE_KEY = 'smmusic_player_prefs'
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+function savePrefs(prefs) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+}
+
 export const usePlayerStore = defineStore('player', () => {
+  const savedPrefs = loadPrefs()
+
   const queue = ref([])
   const originalQueue = ref([])
   const currentIndex = ref(-1)
   const isPlaying = ref(false)
-  const highQuality = ref(false)
-  const isShuffled = ref(false)
-  const repeatMode = ref('off') // 'off' | 'all' | 'one'
+  const highQuality = ref(savedPrefs.highQuality ?? false)
+  const isShuffled = ref(savedPrefs.isShuffled ?? false)
+  const repeatMode = ref(savedPrefs.repeatMode ?? 'off')
   const isQueueOpen = ref(false)
   const isFullScreenOpen = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
-  const volume = ref(1)
+  const volume = ref(savedPrefs.volume ?? 1)
   const audio = new Audio()
+  audio.volume = volume.value
 
   const currentSong = computed(() =>
     currentIndex.value >= 0 ? queue.value[currentIndex.value] : null,
   )
+
+  // Persist relevant prefs whenever they change
+  watch([highQuality, isShuffled, repeatMode, volume], () => {
+    savePrefs({
+      highQuality: highQuality.value,
+      isShuffled: isShuffled.value,
+      repeatMode: repeatMode.value,
+      volume: volume.value,
+    })
+  })
 
   function playQueue(songs, startIndex = 0) {
     originalQueue.value = songs
@@ -67,7 +96,7 @@ export const usePlayerStore = defineStore('player', () => {
     audio.src = getStreamUrl(song.id, quality)
     audio.play()
     isPlaying.value = true
-    recordPlay(song.id).catch(() => {}) // fire-and-forget
+    recordPlay(song.id).catch(() => {})
   }
 
   function togglePlay() {
@@ -86,6 +115,13 @@ export const usePlayerStore = defineStore('player', () => {
       loadAndPlay()
     } else if (repeatMode.value === 'all') {
       currentIndex.value = 0
+      loadAndPlay()
+    }
+  }
+
+  function prev() {
+    if (currentIndex.value > 0) {
+      currentIndex.value--
       loadAndPlay()
     }
   }
@@ -109,20 +145,23 @@ export const usePlayerStore = defineStore('player', () => {
     loadAndPlay()
   }
 
-  function prev() {
-    if (currentIndex.value > 0) {
-      currentIndex.value--
-      loadAndPlay()
-    }
-  }
-
   function toggleHighQuality() {
     highQuality.value = !highQuality.value
     if (currentSong.value) {
-      const currentTime = audio.currentTime
+      const time = audio.currentTime
       loadAndPlay()
-      audio.currentTime = currentTime
+      audio.currentTime = time
     }
+  }
+
+  function seek(time) {
+    audio.currentTime = time
+    currentTime.value = time
+  }
+
+  function setVolume(value) {
+    volume.value = value
+    audio.volume = value
   }
 
   audio.addEventListener('ended', () => {
@@ -139,16 +178,6 @@ export const usePlayerStore = defineStore('player', () => {
   audio.addEventListener('loadedmetadata', () => {
     duration.value = audio.duration
   })
-
-  function seek(time) {
-    audio.currentTime = time
-    currentTime.value = time
-  }
-
-  function setVolume(value) {
-    volume.value = value
-    audio.volume = value
-  }
 
   return {
     queue,

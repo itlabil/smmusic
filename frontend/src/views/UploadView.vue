@@ -2,7 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
-import { uploadSong } from '@/services/songs'
+import { uploadSong, confirmUpload } from '@/services/songs'
+import DuplicateSongModal from '@/components/song-card/DuplicateSongModal.vue'
 
 const router = useRouter()
 const selectedFile = ref(null)
@@ -10,6 +11,9 @@ const isUploading = ref(false)
 const uploadProgress = ref(0)
 const errorMessage = ref('')
 const successMessage = ref('')
+
+const showDuplicateModal = ref(false)
+const duplicateInfo = ref(null)
 
 function handleFileChange(e) {
   const file = e.target.files[0]
@@ -41,6 +45,12 @@ async function handleUpload() {
       uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
     })
 
+    if (res.data.duplicate) {
+      duplicateInfo.value = res.data
+      showDuplicateModal.value = true
+      return
+    }
+
     successMessage.value = `"${res.data.song.title}" uploaded successfully${
       res.data.song.source_format === 'flac' ? ' — transcoding to MP3 in background' : ''
     }`
@@ -51,6 +61,30 @@ async function handleUpload() {
     isUploading.value = false
     uploadProgress.value = 0
   }
+}
+
+async function handleDuplicateAction(action) {
+  const token = duplicateInfo.value.upload_token
+  showDuplicateModal.value = false
+
+  try {
+    const res = await confirmUpload(token, action)
+    successMessage.value =
+      action === 'merge'
+        ? `Added as additional quality to "${res.data.song.title}"`
+        : `"${res.data.song.title}" uploaded as a new song`
+    selectedFile.value = null
+  } catch (err) {
+    errorMessage.value = err.response?.data?.error || 'Failed to finish upload'
+  } finally {
+    duplicateInfo.value = null
+  }
+}
+
+function handleCancelDuplicate() {
+  showDuplicateModal.value = false
+  duplicateInfo.value = null
+  selectedFile.value = null
 }
 </script>
 
@@ -98,5 +132,14 @@ async function handleUpload() {
       <ArrowLeft :size="16" />
       Back to Library
     </button>
+
+    <DuplicateSongModal
+      v-if="showDuplicateModal"
+      :existing-song="duplicateInfo.existing_song"
+      :can-merge="duplicateInfo.can_merge"
+      @merge="handleDuplicateAction('merge')"
+      @new="handleDuplicateAction('new')"
+      @close="handleCancelDuplicate"
+    />
   </div>
 </template>

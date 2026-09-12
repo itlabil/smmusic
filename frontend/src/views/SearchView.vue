@@ -1,17 +1,19 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { searchSongs, likeSong, unlikeSong } from '@/services/songs'
+import { searchSongs, likeSong, unlikeSong, deleteSong } from '@/services/songs'
 import { usePlayerStore } from '@/stores/player'
 import { Search } from 'lucide-vue-next'
 import SongRow from '@/components/song-card/SongRow.vue'
 import SongListHeader from '@/components/song-card/SongListHeader.vue'
 import AddToPlaylistModal from '@/components/playlist/AddToPlaylistModal.vue'
 import EditSongModal from '@/components/song-card/EditSongModal.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const query = ref('')
 const songs = ref([])
 const isSearching = ref(false)
 const player = usePlayerStore()
+const authStore = useAuthStore()
 const showAddToPlaylistModal = ref(false)
 const showEditModal = ref(false)
 const selectedSongId = ref(null)
@@ -60,6 +62,16 @@ function openEdit(song) {
   selectedSong.value = song
   showEditModal.value = true
 }
+
+function canDeleteSong(song) {
+  return authStore.isAdmin || song.uploaded_by === authStore.user?.id
+}
+
+async function handleDelete(song) {
+  if (!confirm(`Delete "${song.title}"? This cannot be undone.`)) return
+  await deleteSong(song.id)
+  songs.value = songs.value.filter((s) => s.id !== song.id)
+}
 </script>
 
 <template>
@@ -87,10 +99,12 @@ function openEdit(song) {
           v-for="(song, index) in songs"
           :key="song.id"
           :song="song"
+          :can-delete="canDeleteSong(song)"
           @play="playSong(index)"
           @toggle-like="handleToggleLike(song)"
           @add-to-playlist="openAddToPlaylist(song.id)"
           @edit="openEdit(song)"
+          @delete="handleDelete(song)"
         />
       </div>
     </div>

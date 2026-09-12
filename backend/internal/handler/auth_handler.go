@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -104,4 +105,30 @@ func (h *AuthHandler) ListUsers(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
+type adminUpdateUserRequest struct {
+	NewPassword string `json:"new_password" binding:"omitempty,min=6"`
+	Role        string `json:"role" binding:"omitempty,oneof=admin user"`
+}
+
+func (h *AuthHandler) AdminUpdateUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req adminUpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: password must be at least 6 chars, role must be 'admin' or 'user'"})
+		return
+	}
+
+	if err := h.authService.AdminUpdateUser(userID, req.NewPassword, req.Role); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user updated"})
 }

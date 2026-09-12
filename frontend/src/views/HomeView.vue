@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { listSongs, listRecentlyPlayed, likeSong, unlikeSong } from '@/services/songs'
+import { listSongs, listRecentlyPlayed, likeSong, unlikeSong, deleteSong } from '@/services/songs'
+import { useAuthStore } from '@/stores/auth'
 import { usePlayerStore } from '@/stores/player'
 import SongRow from '@/components/song-card/SongRow.vue'
 import SongListHeader from '@/components/song-card/SongListHeader.vue'
@@ -10,6 +11,7 @@ import EditSongModal from '@/components/song-card/EditSongModal.vue'
 const songs = ref([])
 const recentSongs = ref([])
 const player = usePlayerStore()
+const authStore = useAuthStore()
 const showAddToPlaylistModal = ref(false)
 const showEditModal = ref(false)
 const selectedSongId = ref(null)
@@ -68,6 +70,17 @@ async function handleUpdated() {
   await loadSongs()
   await loadRecentSongs()
 }
+
+function canDeleteSong(song) {
+  return authStore.isAdmin || song.uploaded_by === authStore.user?.id
+}
+
+async function handleDelete(song) {
+  if (!confirm(`Delete "${song.title}"? This cannot be undone.`)) return
+  await deleteSong(song.id)
+  await loadSongs()
+  await loadRecentSongs()
+}
 </script>
 
 <template>
@@ -80,10 +93,12 @@ async function handleUpdated() {
           v-for="(song, index) in recentSongs"
           :key="'recent-' + song.id"
           :song="song"
+          :can-delete="canDeleteSong(song)"
           @play="playRecentSong(index)"
           @toggle-like="handleToggleLike(song)"
           @add-to-playlist="openAddToPlaylist(song.id)"
           @edit="openEdit(song)"
+          @delete="handleDelete(song)"
         />
       </div>
     </div>
@@ -102,10 +117,12 @@ async function handleUpdated() {
           :key="song.id"
           :song="song"
           :index="index"
+          :can-delete="canDeleteSong(song)"
           @play="playSong(index)"
           @toggle-like="handleToggleLike(song)"
           @add-to-playlist="openAddToPlaylist(song.id)"
           @edit="openEdit(song)"
+          @delete="handleDelete(song)"
         />
       </div>
     </div>

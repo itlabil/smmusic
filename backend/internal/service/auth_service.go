@@ -91,3 +91,25 @@ func (s *AuthService) ChangePassword(userID int, oldPassword, newPassword string
 func (s *AuthService) ListUsers() ([]models.User, error) {
 	return s.userRepo.List()
 }
+
+// AdminUpdateUser lets an admin change another user's role and/or reset their password.
+// Both newPassword and newRole are optional (empty string = no change).
+func (s *AuthService) AdminUpdateUser(userID int, newPassword, newRole string) error {
+	if newRole != "" {
+		if err := s.userRepo.UpdateRole(userID, newRole); err != nil {
+			return err
+		}
+	}
+
+	if newPassword != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		if err := s.userRepo.UpdatePassword(userID, string(hash)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
